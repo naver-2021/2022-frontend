@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import * as Three from "three";
 import './App.css';
 import * as pr from './pointRendering';
@@ -17,13 +17,19 @@ function App() {
 	// query is a empty string for now.
 	// the function is a async function, so you can use await to wait for the response.
 	// use axios instead of fetch 
+	const attrLen = 8;
+	const weights = new Array(attrLen).fill(0.5);
 
 	const colorMap = d3.schemeCategory10;
 	const size = 700;
+	// for (let i = 0; i < attrLen; i++) {
+		
+	// 	sliderRefArr.push(useRef(null));
+	// }
+	
 
 	// variables for rendering
-	const attrLen = 8;
-	const weights = new Array(attrLen).fill(0.5);
+
 	let currWeight = JSON.parse(JSON.stringify(weights));
 	let canvas, renderer, camera, scene, meshes;
 	const animation = [];
@@ -66,6 +72,14 @@ function App() {
 				}
 				else {
 					const timeRatio = timeDiff / currAnimation.time;
+					const currWeight = currAnimation.startWeight.map((d, idx) => {
+						return d + (currAnimation.endWeight[idx] - d) * timeRatio;
+					});
+					currWeight.forEach((d, idx) => {
+						const slider = document.getElementById("slider_" + idx);
+						slider.value = d * 50;
+					});
+					console.log(currWeight)
 					const currCoor = currAnimation.startCoor.map((d, idx) => {
 						return {
 							x: d.x + (currAnimation.endCoor[idx].x - d.x) * timeRatio,
@@ -102,30 +116,17 @@ function App() {
 
 	}
 
-	async function updateLDToTargetWeight(initialWeight, targetWeight, step, time, targetCoor) {
-		// const weightDiff = targetWeight.map((d, idx) => d - initialWeight[idx]);
-		// const weightStep = weightDiff.map((d) => d / step);
-		// const coorsArr = new Array(step + 1).fill(undefined);
-		// await (async () => {
-		// 	for (let i = 0; i < step + 1; i++) {
-		// 		const tempWeight = initialWeight.map((d, idx) => d + weightStep[idx] * i);
-		// 		coorsArr[i] = getLD(tempWeight);
-		// 	}
-		// })();
-		// const coorsReturn = await Promise.all(coorsArr);
-		// const subTime = time / step;
-		// for (let i = 0; i < step-1; i++) {
-		// 	registerAnimation(coorsReturn[i], coorsReturn[i + 1], subTime);
-		// }
-
-		// 
-		console.log(targetCoor)
-		if (targetCoor === undefined) {
+	async function updateLDToTargetWeight(initialWeight, targetWeight, step, time, isTargetCoor) {
+		
+		let targetCoor;	
+		// console.log(targetCoor)
+		if (isTargetCoor === false) {
 			targetCoor = await getLD(targetWeight);
-			registerAnimation(coors, targetCoor, time);
+			registerAnimation(coors, targetCoor, targetWeight, targetWeight, time);
 		}
 		else {
-			registerAnimation(coors, targetCoor, time);
+			targetCoor = await getLD(targetWeight);
+			registerAnimation(coors, targetCoor, initialWeight, targetWeight, time);
 		}
 
 		coors = JSON.parse(JSON.stringify(targetCoor));
@@ -135,10 +136,12 @@ function App() {
 		// registerAnimation(coors,)
 	}
 
-	function registerAnimation(startCoor, endCoor, time) {
+	function registerAnimation(startCoor, endCoor, startWeight, endWeight, time) {
 		animation.push({
 			startCoor: startCoor,
 			endCoor: endCoor,
+			startWeight: startWeight, 
+			endWeight: endWeight,
 			time: time,
 		})
 	}
@@ -146,6 +149,7 @@ function App() {
 	function sliderChange(e) {
 		const idx = e.target.getAttribute('idx');
 		const value = e.target.value / 50;
+
 		weights[idx] = value;
 		(async () => {
 			await updateLDToTargetWeight(currWeight, weights, 10, 750);
@@ -309,7 +313,7 @@ function App() {
 			(async () => {
 				const response = await axios.get(url + "query_merge", { params: { index: indexListString } });
 				const newWeight = response.data.weights;
-				await updateLDToTargetWeight(currWeight, newWeight, 10, 750);
+				await updateLDToTargetWeight(currWeight, newWeight, 10, 750, true);
 			})();
 		}
 
@@ -345,9 +349,11 @@ function App() {
 									max="50"
 									defaultValue="25"
 									className="slider"
-									id="myRange"
+									// id="slider"
+									id={"slider_" + i}
 									onMouseUp={sliderChange}
 									idx={i}
+									// ref={sliderRefArr[i]}
 								></input>
 							</div>
 						);
