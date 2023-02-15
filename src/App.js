@@ -151,7 +151,7 @@ function App() {
 
 		weights[idx] = value;
 		(async () => {
-			await updateLDToTargetWeight(currWeight, weights, 10, 750);
+			await updateLDToTargetWeight(currWeight, weights, 10, 750, false);
 
 		})();
 	}
