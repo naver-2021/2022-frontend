@@ -4,6 +4,7 @@ import './App.css';
 import * as pr from './pointRendering';
 import axios from 'axios';
 import * as d3 from 'd3';
+import robustPointInPolygon from "robust-point-in-polygon";
 
 
 const url = 'http://gpu.hcil.snu.ac.kr:8888/'
@@ -15,20 +16,24 @@ function App() {
 	// query is a empty string for now.
 	// the function is a async function, so you can use await to wait for the response.
 	// use axios instead of fetch 
+
+	const colorMap = d3.schemeCategory10;
+	const size = 700;
+
+	// variables for rendering
 	const attrLen = 8;
 	const weights = new Array(attrLen).fill(0.5);
 	let currWeight = JSON.parse(JSON.stringify(weights));
 	let canvas, renderer, camera, scene, meshes;
-
 	const animation = [];
-
+	let coors;
+	let labels, prevLabels;
 	
 
 	async function initialLDRendering(weight) {
 		if (meshes !== undefined) {
 			return;
 		}
-		console.log("BB")
 		const weightString = weight.join(',')
 		const response = await axios.get(url + "weights_to_pr", { params: {weights: weightString}})
 		const data = response.data;
@@ -42,8 +47,10 @@ function App() {
 				y: yScale(d[1]),
 			}
 		});
+		coors = scaledData;
+		labels = new Array(scaledData.length).fill(-1);
 
-		meshes = scaledData.map((d) => pr.generateMesh(d, 2, 0xaaaaaa));
+		meshes = scaledData.map((d) => pr.generateMesh(d, 2, 0x000000));
 		meshes.forEach((mesh) => scene.add(mesh));
 		function render() {
 			if (animation.length > 0) {
@@ -66,8 +73,6 @@ function App() {
 					});
 					meshes.forEach((mesh, idx) => mesh.position.set(currCoor[idx].x, currCoor[idx].y, 0));
 				}
-
-
 			}
 			renderer.render(scene, camera);
 			requestAnimationFrame(render);
@@ -75,12 +80,6 @@ function App() {
 		render();
 
 
-	}
-
-	async function updateLDRendering(weight) {
-
-		const scaledData = await getLD(weight);
-		meshes.forEach((mesh, idx) => mesh.position.set(scaledData[idx].x, scaledData[idx].y, 0));
 	}
 
 	async function getLD(weight) {
@@ -105,21 +104,20 @@ function App() {
 	async function updateLDToTargetWeight(initialWeight, targetWeight, step, time) {
 		const weightDiff = targetWeight.map((d, idx) => d - initialWeight[idx]);
 		const weightStep = weightDiff.map((d) => d / step);
-		const coors = new Array(step + 1).fill(undefined);
+		const coorsArr = new Array(step + 1).fill(undefined);
 		await (async () => {
 			for (let i = 0; i < step + 1; i++) {
 				const tempWeight = initialWeight.map((d, idx) => d + weightStep[idx] * i);
-				coors[i] = getLD(tempWeight);
+				coorsArr[i] = getLD(tempWeight);
 			}
 		})();
-		const coorsReturn = await Promise.all(coors);
-		console.log(coorsReturn)
+		const coorsReturn = await Promise.all(coorsArr);
 		const subTime = time / step;
 		for (let i = 0; i < step-1; i++) {
 			registerAnimation(coorsReturn[i], coorsReturn[i + 1], subTime);
 		}
 
-
+		coors = coorsReturn[step];
 		currWeight = JSON.parse(JSON.stringify(targetWeight));
 
 	}
@@ -131,6 +129,17 @@ function App() {
 			time: time,
 		})
 	}
+
+	function sliderChange(e) {
+		const idx = e.target.getAttribute('idx');
+		const value = e.target.value / 50;
+		weights[idx] = value;
+		(async () => {
+			await updateLDToTargetWeight(currWeight, weights, 20, 750);
+
+		})();
+	}
+
 
 
 
@@ -155,27 +164,127 @@ function App() {
 		})();
 	});
 
-	function sliderChange(e) {
-		const idx = e.target.getAttribute('idx');
-		const value = e.target.value / 50;
-		weights[idx] = value;
-		(async () => {
-			await updateLDToTargetWeight(currWeight, weights, 50, 750);
-			
-		})();
+
+	// variables for lassoing groups
+	let lassos = {};
+	let isLassoing = false;
+	let startPosition;
+
+	const groups = {};
+	let currGroupNum = -1;
+	let lassoPaths;
+
+	function updateColor() {
+
+		meshes.forEach((mesh, idx) => {
+			if (labels[idx] === -1) {
+				mesh.material.color.set(0x000000);
+			}
+			else {
+				mesh.material.color.set(colorMap[labels[idx] % 10]);
+			}
+		});
 	}
+
+
+	// lasso setting
+	useEffect(() => {
+		function clickLasso(e) {
+			if (!isLassoing) {
+				isLassoing = true;
+				currGroupNum += 1;
+				groups[currGroupNum] = new Array(coors.length).fill(false);
+				startPosition = [e.offsetX, e.offsetY];
+				lassoPaths = [[startPosition[0], startPosition[1]]];
+				prevLabels = JSON.parse(JSON.stringify(labels));
+				d3.select(e.target)
+					.append("circle")
+					.attr("id", "currentLassoCircle")
+					.attr("cx", startPosition[0])
+					.attr("cy", startPosition[1])
+					.attr("r", 5)
+					.attr("fill", "None")
+					.attr("stroke", colorMap[currGroupNum % 10])
+
+				d3.select(e.target)
+				  .append("path")
+					.attr("id", "currentLassoPath")
+					.attr("fill", "None")
+					.attr("stroke", colorMap[currGroupNum % 10])
+					.attr("stroke-dasharray", "5,5");
+			}
+			else if (isLassoing) {
+				isLassoing = false;
+				d3.select(e.target)
+					.select("#currentLassoCircle")
+					.remove();
+				
+				d3.select(e.target)
+					.select("#currentLassoPath")
+					.remove();
+				
+				
+			}
+		}
+
+		function mouseMoveLasso(e) {
+			if (isLassoing) {
+				const currPosition = [e.offsetX, e.offsetY];
+				const prevPosition = lassoPaths[lassoPaths.length - 1];
+				const distance = Math.sqrt((currPosition[0] - prevPosition[0]) ** 2 + (currPosition[1] - prevPosition[1]) ** 2);
+				if (distance > 8) {
+					lassoPaths.push(currPosition);
+
+					// draw lasso path
+					const polygon = [...lassoPaths, startPosition]
+					d3.select(e.target)
+						.select("#currentLassoPath")
+						.attr("d", d3.line()(polygon))
+
+					// console.log(polygon, coors[300])
+					coors.forEach((xy, i) => {
+						// console.log(lassoPaths, xy)
+
+						if (robustPointInPolygon(lassoPaths, [xy.x, size - xy.y]) === -1) {
+							groups[currGroupNum][i] = true;
+							labels[i] = currGroupNum;
+						}
+						else {
+							groups[currGroupNum][i] = false;
+							labels[i] = prevLabels[i];
+						}
+					});
+					updateColor();
+				}
+				
+			}
+		}
+
+		d3.select("#lassoSvg")
+			.on("click", clickLasso)
+			.on("mousemove", mouseMoveLasso)
+	})
+
 
 
   return (
     <div className="App">
 			<div className="AppWrapper">
-				<canvas
-					width={700}
-					height={700}
-					id="canvas"
-					style={{ border: '1px solid black' }}
-				></canvas>
-				<div className="sliderDiv">
+				<div>
+					<canvas
+						width={size}
+						height={size}
+						id="canvas"
+						style={{ border: '1px solid black', position: 'absolute' }}
+					></canvas>
+					<svg
+						id="lassoSvg"
+						width={size}
+						height={size}
+						style={{ position: 'absolute', border: '1px solid black' }}
+					></svg>
+				</div>
+				<div className="sliderDiv" style = {{ marginLeft: 700}}>
 					{new Array(attrLen).fill(0).map((_, i) => {
 						return (
 							<div className="slider" key={i}>
