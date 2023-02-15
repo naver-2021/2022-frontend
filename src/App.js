@@ -5,6 +5,7 @@ import * as pr from './pointRendering';
 import axios from 'axios';
 import * as d3 from 'd3';
 import robustPointInPolygon from "robust-point-in-polygon";
+import GroupView from './GroupView';
 
 
 const url = 'http://gpu.hcil.snu.ac.kr:8888/'
@@ -101,25 +102,37 @@ function App() {
 
 	}
 
-	async function updateLDToTargetWeight(initialWeight, targetWeight, step, time) {
-		const weightDiff = targetWeight.map((d, idx) => d - initialWeight[idx]);
-		const weightStep = weightDiff.map((d) => d / step);
-		const coorsArr = new Array(step + 1).fill(undefined);
-		await (async () => {
-			for (let i = 0; i < step + 1; i++) {
-				const tempWeight = initialWeight.map((d, idx) => d + weightStep[idx] * i);
-				coorsArr[i] = getLD(tempWeight);
-			}
-		})();
-		const coorsReturn = await Promise.all(coorsArr);
-		const subTime = time / step;
-		for (let i = 0; i < step-1; i++) {
-			registerAnimation(coorsReturn[i], coorsReturn[i + 1], subTime);
+	async function updateLDToTargetWeight(initialWeight, targetWeight, step, time, targetCoor) {
+		// const weightDiff = targetWeight.map((d, idx) => d - initialWeight[idx]);
+		// const weightStep = weightDiff.map((d) => d / step);
+		// const coorsArr = new Array(step + 1).fill(undefined);
+		// await (async () => {
+		// 	for (let i = 0; i < step + 1; i++) {
+		// 		const tempWeight = initialWeight.map((d, idx) => d + weightStep[idx] * i);
+		// 		coorsArr[i] = getLD(tempWeight);
+		// 	}
+		// })();
+		// const coorsReturn = await Promise.all(coorsArr);
+		// const subTime = time / step;
+		// for (let i = 0; i < step-1; i++) {
+		// 	registerAnimation(coorsReturn[i], coorsReturn[i + 1], subTime);
+		// }
+
+		// 
+		console.log(targetCoor)
+		if (targetCoor === undefined) {
+			targetCoor = await getLD(targetWeight);
+			registerAnimation(coors, targetCoor, time);
+		}
+		else {
+			registerAnimation(coors, targetCoor, time);
 		}
 
-		coors = coorsReturn[step];
+		coors = JSON.parse(JSON.stringify(targetCoor));
 		currWeight = JSON.parse(JSON.stringify(targetWeight));
-
+		
+		
+		// registerAnimation(coors,)
 	}
 
 	function registerAnimation(startCoor, endCoor, time) {
@@ -135,7 +148,7 @@ function App() {
 		const value = e.target.value / 50;
 		weights[idx] = value;
 		(async () => {
-			await updateLDToTargetWeight(currWeight, weights, 20, 750);
+			await updateLDToTargetWeight(currWeight, weights, 10, 750);
 
 		})();
 	}
@@ -174,8 +187,15 @@ function App() {
 	let currGroupNum = -1;
 	let lassoPaths;
 
-	function updateColor() {
+	let groupInfo = null;
+	let setGroupInfo = null;
 
+	const onGroupViewMount = (dataFromChild) => {
+		groupInfo = dataFromChild[0];
+		setGroupInfo = dataFromChild[1];
+	}
+
+	function updateColor() {
 		meshes.forEach((mesh, idx) => {
 			if (labels[idx] === -1) {
 				mesh.material.color.set(0x000000);
@@ -223,6 +243,10 @@ function App() {
 					.select("#currentLassoPath")
 					.remove();
 				
+				setGroupInfo([...groupInfo, {
+					idx: currGroupNum, coors: groups[currGroupNum],
+					selected: false, shielded: false
+				}]);
 				
 			}
 		}
@@ -256,7 +280,6 @@ function App() {
 					});
 					updateColor();
 				}
-				
 			}
 		}
 
@@ -264,6 +287,34 @@ function App() {
 			.on("click", clickLasso)
 			.on("mousemove", mouseMoveLasso)
 	})
+
+	function runQuery(groupInfo, queryType) {
+		// TODO
+		if (queryType == "merge") {
+			const selectedGroups = groupInfo.filter((group) => group.selected);
+			if (selectedGroups.length < 1) {
+				alert("Please select at least one group");
+				return;
+			}
+			const selectedCoors = new Array(selectedGroups[0].coors.length).fill(false);
+			selectedGroups.forEach((group) => {
+				group.coors.forEach((coor, i) => {
+					selectedCoors[i] = selectedCoors[i] || coor;
+				})
+			});
+			console.log(selectedCoors);
+			const indexList = selectedCoors.map((coor, i) => i).filter((i) => selectedCoors[i]);
+			console.log(indexList);
+			const indexListString = indexList.join(",");
+			(async () => {
+				const response = await axios.get(url + "query_merge", { params: { index: indexListString } });
+				const newWeight = response.data.weights;
+				await updateLDToTargetWeight(currWeight, newWeight, 10, 750);
+			})();
+		}
+
+		
+	}
 
 
 
@@ -302,7 +353,8 @@ function App() {
 						);
 					})}
 				</div>
-
+				<GroupView onMount={onGroupViewMount} runQuery={runQuery}/>
+				
 			</div>
     </div>
   );
