@@ -42,7 +42,7 @@ function App() {
 			return;
 		}
 		const weightString = weight.join(',')
-		const response = await axios.get(url + "weights_to_pr", { params: {weights: weightString}})
+		const response = await axios.post(url + "weights_to_pr", { params: {weights: weightString}})
 		const data = response.data;
 		const xExtent = d3.extent(data, (d) => d[0]);
 		const yExtent = d3.extent(data, (d) => d[1]);
@@ -79,7 +79,6 @@ function App() {
 						const slider = document.getElementById("slider_" + idx);
 						slider.value = d * 50;
 					});
-					console.log(currWeight)
 					const currCoor = currAnimation.startCoor.map((d, idx) => {
 						return {
 							x: d.x + (currAnimation.endCoor[idx].x - d.x) * timeRatio,
@@ -99,7 +98,7 @@ function App() {
 
 	async function getLD(weight) {
 		const weightString = weight.join(',')
-		const response = await axios.get(url + "weights_to_pr", { params: { weights: weightString } });
+		const response = await axios.post(url + "weights_to_pr", { params: { weights: weightString } });
 		const data = response.data;
 		const xExtent = d3.extent(data, (d) => d[0]);
 		const yExtent = d3.extent(data, (d) => d[1]);
@@ -296,6 +295,7 @@ function App() {
 		// TODO
 		if (queryType == "merge") {
 			const selectedGroups = groupInfo.filter((group) => group.selected);
+			const shieldedGroups = groupInfo.filter((group) => group.shielded);
 			if (selectedGroups.length < 1) {
 				alert("Please select at least one group");
 				return;
@@ -310,8 +310,43 @@ function App() {
 			const indexList = selectedCoors.map((coor, i) => i).filter((i) => selectedCoors[i]);
 			console.log(indexList);
 			const indexListString = indexList.join(",");
+
+			if (shieldedGroups.length > 0) {
+				const shieldIndexList = []
+				shieldedGroups.forEach((group) => {
+					const groupIndexList = group.coors.map((coor, i) => i).filter((i) => group.coors[i]);
+					shieldIndexList.push(groupIndexList);
+				});
+				const shieldIndexListString = JSON.stringify(shieldIndexList);
+				(async () => {
+					const response = await axios.post(url + "query_merge_cluster", { params: { merge: indexListString, indices: shieldIndexListString } });
+					const newWeight = response.data.weights;
+					await updateLDToTargetWeight(currWeight, newWeight, 10, 750, true);
+				})();
+			}
+			else {
+				(async () => {
+					const response = await axios.post(url + "query_merge", { params: { index: indexListString } });
+					const newWeight = response.data.weights;
+					await updateLDToTargetWeight(currWeight, newWeight, 10, 750, true);
+				})();
+			}
+	
+		}
+		if (queryType == "separate") {
+			const selectedGroups = groupInfo.filter((group) => group.selected);
+			if (selectedGroups.length < 2) {
+				alert("Please select at least two groups");
+				return;
+			}
+			const indexList = []
+			selectedGroups.forEach((group) => {
+				const groupIndexList = group.coors.map((coor, i) => i).filter((i) => group.coors[i]);
+				indexList.push(groupIndexList);
+			});
+			const indexListString = JSON.stringify(indexList);
 			(async () => {
-				const response = await axios.get(url + "query_merge", { params: { index: indexListString } });
+				const response = await axios.post(url + "query_cluster", { params: { indices: indexListString } });
 				const newWeight = response.data.weights;
 				await updateLDToTargetWeight(currWeight, newWeight, 10, 750, true);
 			})();
