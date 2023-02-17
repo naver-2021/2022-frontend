@@ -354,9 +354,16 @@ function App() {
 				await updateLDToTargetWeight(currWeight, newWeight, 10, 750, true);
 			})();
 		}
-
-		
 	}
+
+	useEffect(() => {
+		axios.get(url + "get_attr_list")
+			.then((response) => {
+				response.data.forEach((attr, i) => {
+					document.getElementById("attrName_" + i).innerHTML = attr;
+				})
+			});
+	});
 
 
 
@@ -381,6 +388,8 @@ function App() {
 					{new Array(attrLen).fill(0).map((_, i) => {
 						return (
 							<div className="slider" key={i}>
+								<div id={"attrName_" + i}>
+								</div>
 								<input
 									type="range"
 									min="0"
