@@ -385,6 +385,7 @@ function App() {
 					></svg>
 				</div>
 				<div className="sliderDiv" style = {{ marginLeft: 700}}>
+					<h1>Slider</h1>
 					{new Array(attrLen).fill(0).map((_, i) => {
 						return (
 							<div className="slider" key={i}>
