@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
+import axios from 'axios';
 
+const url = 'http://gpu.hcil.snu.ac.kr:8888/'
 
 const GroupView = (props) => {
 
@@ -19,6 +21,8 @@ const GroupView = (props) => {
 		"Age": useState(new Set()),
 		"Loc": useState(new Set())
 	}
+	const [newGroupCoor, setNewGroupCoor] = useState([]);
+	const [newGroupIdx, setNewGroupIdx] = useState(-1);
 
 	useEffect(() => {
 		props.onMount([groupInfo, setGroupInfo]);
@@ -42,19 +46,52 @@ const GroupView = (props) => {
 
 	function runMergeQuery() { props.runQuery(groupInfo, "merge") }
 
-	function addGroup() {
+	function addGroup(e) {
 		// get max group info index
+		console.log(groupInfo);
 		const maxIdx = groupInfo.reduce((max, group) => {
 			return max > group.idx ? max : group.idx;
-		}, 0);
+		}, -1) + 1;
 		setNewGroupName("Group_" + maxIdx);
 		setIsAddingGroup(true);
+		setNewGroupIdx(maxIdx);
+
+		console.log(maxIdx);
+
+		e.target.disabled = true;
+	}
+
+	function getCurrentAxiosParamJson(filterOption, filterValue) {
+		const beforeDict = {
+			"gender": [...newGroupFilterDict["Gender"][0]],
+			"age": [...newGroupFilterDict["Age"][0]],
+			"addr": [...newGroupFilterDict["Loc"][0]]
+		};
+		if (filterOption == "Gender") {
+			beforeDict["gender"] = [...beforeDict["gender"], filterValue];
+		}
+		else if (filterOption == "Age") {
+			beforeDict["age"] = [...beforeDict["age"], filterValue];
+		}
+		else if (filterOption == "Loc") {
+			beforeDict["addr"] = [...beforeDict["addr"], filterValue];
+		}
+
+		if (beforeDict["gender"].length === 0) {
+			delete beforeDict["gender"];
+		} 
+		if (beforeDict["age"].length === 0) {
+			delete beforeDict["age"];
+		}
+		if (beforeDict["addr"].length === 0) {
+			delete beforeDict["addr"];
+		}
+
+		return beforeDict;
 	}
 
 	function adjustFilter(e) {
-		console.log(e)
-		console.log(e.target)
-		console.log("ADJSUT")
+
 		const filterOption = e.target.name;
 		const filterValue = e.target.value;
 		const checked = e.target.checked;
@@ -70,12 +107,35 @@ const GroupView = (props) => {
 				)
 			)
 		}
-		console.log(filterOption, filterValue, checked, newGroupFilterDict[filterOption][0])
+
+		const filterParam = getCurrentAxiosParamJson(filterOption, filterValue);
+		axios.post(url + 'filter',filterParam)
+			.then((res) => {
+				setNewGroupCoor(res.data);
+				props.updateColorBasedOnGroupView(newGroupIdx, res.data)
+			});
+		
 
 	}
 
 	function confirmGroup() {
+		setGroupInfo([
+			...groupInfo, {
+				idx: newGroupIdx, coors: newGroupCoor, name: newGroupName,
+				selected: false, shielded: false
+			}
+		]);
 
+		document.getElementsByClassName("groupAddButton")[0].disabled = false;
+		setIsAddingGroup(false);
+		setNewGroupName("");
+		setNewGroupIdx(-1);
+		setNewGroupCoor([]);
+		newGroupFilterDict["Age"][1](new Set());
+		newGroupFilterDict["Gender"][1](new Set());
+		newGroupFilterDict["Loc"][1](new Set());
+
+		props.confirmNewGroupLabel()
 	}
 	return (
 		<div>

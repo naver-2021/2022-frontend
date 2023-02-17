@@ -56,6 +56,7 @@ function App() {
 		});
 		coors = scaledData;
 		labels = new Array(scaledData.length).fill(-1);
+		prevLabels = new Array(scaledData.length).fill(-1);
 
 		meshes = scaledData.map((d) => pr.generateMesh(d, 2, 0xaaaaaa));
 		meshes.forEach((mesh) => scene.add(mesh));
@@ -210,6 +211,25 @@ function App() {
 				mesh.position.z = 0.0000000000001 * labels[idx];
 			}
 		});
+	}
+
+	function tempUpdateLabel(newGroupIdx, coors) {
+		const newLabels = JSON.parse(JSON.stringify(prevLabels));
+		console.log(coors, newGroupIdx)
+		coors.forEach((idx) => {
+			newLabels[idx] = newGroupIdx;
+		});
+		labels = newLabels;
+		console.log(labels);
+	}
+
+	function updateColorBasedOnGroupView(newGroupIdx, coors) {
+		tempUpdateLabel(newGroupIdx, coors);
+		updateColor();
+	}
+
+	function confirmNewGroupLabel() {
+		prevLabels = JSON.parse(JSON.stringify(labels));
 	}
 
 
@@ -407,7 +427,10 @@ function App() {
 						);
 					})}
 				</div>
-				<GroupView onMount={onGroupViewMount} runQuery={runQuery}/>
+				<GroupView onMount={onGroupViewMount} runQuery={runQuery}
+					updateColorBasedOnGroupView={updateColorBasedOnGroupView}
+					confirmNewGroupLabel={confirmNewGroupLabel}
+				/>
 				
 			</div>
     </div>
