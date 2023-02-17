@@ -57,7 +57,7 @@ function App() {
 		coors = scaledData;
 		labels = new Array(scaledData.length).fill(-1);
 
-		meshes = scaledData.map((d) => pr.generateMesh(d, 2, 0x000000));
+		meshes = scaledData.map((d) => pr.generateMesh(d, 2, 0xaaaaaa));
 		meshes.forEach((mesh) => scene.add(mesh));
 		function render() {
 			if (animation.length > 0) {
@@ -201,10 +201,13 @@ function App() {
 	function updateColor() {
 		meshes.forEach((mesh, idx) => {
 			if (labels[idx] === -1) {
-				mesh.material.color.set(0x000000);
+				mesh.material.color.set(0xaaaaaa);
+				// set render order to 0
+				mesh.position.z = 0;
 			}
 			else {
 				mesh.material.color.set(colorMap[labels[idx] % 10]);
+				mesh.position.z = 0.0000000000001 * labels[idx];
 			}
 		});
 	}
