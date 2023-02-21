@@ -149,7 +149,7 @@ function App() {
 	function sliderChange(e) {
 		const idx = e.target.getAttribute('idx');
 		const value = e.target.value / 50;
-
+		currWeight.forEach((d, idx) => { weights[idx] = d; });
 		weights[idx] = value;
 		(async () => {
 			await updateLDToTargetWeight(currWeight, weights, 10, 750, false);
