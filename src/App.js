@@ -209,6 +209,16 @@ function App() {
 			else {
 				mesh.material.color.set(colorMap[labels[idx] % 10]);
 				mesh.position.z = 0.0000000000001 * labels[idx];
+				mesh.scale.set(1, 1, 1);
+			}
+		});
+		groupInfo.forEach((group, idx) => {
+			if (group.selected) {
+				group.coors.forEach((coor, idx) => {
+					if (coor) {
+						meshes[idx].scale.set(1.5, 1.5, 1.5);
+					}
+				});
 			}
 		});
 	}
@@ -238,7 +248,7 @@ function App() {
 		function clickLasso(e) {
 			if (!isLassoing) {
 				isLassoing = true;
-				currGroupNum += 1;
+				currGroupNum = groupInfo.length;
 				groups[currGroupNum] = new Array(coors.length).fill(false);
 				startPosition = [e.offsetX, e.offsetY];
 				lassoPaths = [[startPosition[0], startPosition[1]]];
@@ -317,8 +327,9 @@ function App() {
 	function runQuery(groupInfo, queryType) {
 		// TODO
 		if (queryType == "merge") {
-			const selectedGroups = groupInfo.filter((group) => group.selected);
-			const shieldedGroups = groupInfo.filter((group) => group.shielded);
+			let selectedGroups = groupInfo.filter((group) => group.selected);
+			const shieldedGroups = selectedGroups.filter((group) => group.shielded);
+			selectedGroups = selectedGroups.filter((group) => !group.shielded);
 			if (selectedGroups.length < 1) {
 				alert("Please select at least one group");
 				return;
@@ -329,9 +340,7 @@ function App() {
 					selectedCoors[i] = selectedCoors[i] || coor;
 				})
 			});
-			console.log(selectedCoors);
 			const indexList = selectedCoors.map((coor, i) => i).filter((i) => selectedCoors[i]);
-			console.log(indexList);
 			const indexListString = indexList.join(",");
 
 			if (shieldedGroups.length > 0) {
@@ -429,6 +438,7 @@ function App() {
 				</div>
 				<GroupView onMount={onGroupViewMount} runQuery={runQuery}
 					updateColorBasedOnGroupView={updateColorBasedOnGroupView}
+					updateColor={updateColor}
 					confirmNewGroupLabel={confirmNewGroupLabel}
 				/>
 				

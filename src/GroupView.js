@@ -32,6 +32,7 @@ const GroupView = (props) => {
 		const groupIdx = e.target.className.split("_")[1];
 		const checked = e.target.checked;
 		groupInfo[groupIdx].selected = checked;
+		props.updateColor();
 	}
 
 	function onClickShieldBox(e) {
@@ -61,20 +62,27 @@ const GroupView = (props) => {
 		e.target.disabled = true;
 	}
 
-	function getCurrentAxiosParamJson(filterOption, filterValue) {
+	function getCurrentAxiosParamJson(filterOption, filterValue, checked) {
 		const beforeDict = {
 			"gender": [...newGroupFilterDict["Gender"][0]],
 			"age": [...newGroupFilterDict["Age"][0]],
 			"addr": [...newGroupFilterDict["Loc"][0]]
 		};
-		if (filterOption == "Gender") {
-			beforeDict["gender"] = [...beforeDict["gender"], filterValue];
+		if (checked) {
+			if (filterOption == "Gender") 
+				beforeDict["gender"] = [...beforeDict["gender"], filterValue];
+			else if (filterOption == "Age")
+				beforeDict["age"] = [...beforeDict["age"], filterValue];
+			else if (filterOption == "Loc") 
+				beforeDict["addr"] = [...beforeDict["addr"], filterValue];
 		}
-		else if (filterOption == "Age") {
-			beforeDict["age"] = [...beforeDict["age"], filterValue];
-		}
-		else if (filterOption == "Loc") {
-			beforeDict["addr"] = [...beforeDict["addr"], filterValue];
+		else {
+			if (filterOption == "Gender")
+				beforeDict["gender"] = beforeDict["gender"].filter((value) => value !== filterValue);
+			else if (filterOption == "Age")
+				beforeDict["age"] = beforeDict["age"].filter((value) => value !== filterValue);
+			else if (filterOption == "Loc")
+				beforeDict["addr"] = beforeDict["addr"].filter((value) => value !== filterValue);
 		}
 
 		if (beforeDict["gender"].length === 0) {
@@ -108,7 +116,7 @@ const GroupView = (props) => {
 			)
 		}
 
-		const filterParam = getCurrentAxiosParamJson(filterOption, filterValue);
+		const filterParam = getCurrentAxiosParamJson(filterOption, filterValue, checked);
 		axios.post(url + 'filter',filterParam)
 			.then((res) => {
 				setNewGroupCoor(res.data);
