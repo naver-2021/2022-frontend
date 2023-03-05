@@ -3,16 +3,24 @@ import * as d3 from 'd3';
 
 
 export class scatterplot {
-	constructor(canvas, size) {
+	constructor(canvas, lassoSvg, size) {
 		this.canvas   = canvas;
+		this.lassoSvg = lassoSvg;
 		this.renderer = new Three.WebGLRenderer({ canvas: this.canvas });
 		this.camera   = new Three.OrthographicCamera(0, size, size, 0, 0, 1);
 		this.scene    = new Three.Scene();
 
 		this.camera.position.set(0, 0, 1);
 		this.scene.background = new Three.Color(0xffffff);
+
+		// lassoing variables
+		this.isLassoing    = false; 
+		this.startPosition = undefined;
+		this.lassoPath     = undefined;
+		this.registerLassoEvent();
 	}
 
+	// functions for rendering and updating
 	render() {
 		this.renderer.render(this.scene, this.camera);
 	} 
@@ -56,6 +64,21 @@ export class scatterplot {
 
 	setMeshScale(idx, scale) {
 		this.meshes[idx].scale.set(scale[0], scale[1], scale[2]);
+	}
+
+	// functions for lasso selection
+	registerLassoEvent() {
+		d3.select(this.lassoSvg)
+		  .on("click", clickLassoSvg)
+			.on("mousemove", mousemoveLassoSvg)
+	}
+
+
+	clickLassoSvg() {
+		if (!this.isLassoing) {
+			this.isLassoing = true;
+			this.startPosition = [e.off]
+		}
 	}
 
 }

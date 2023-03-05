@@ -32,6 +32,20 @@ function App() {
 	
 	let coors;
 	let labels, prevLabels;
+
+
+	// initial function called when the page is loaded
+	useEffect(() => {
+		if (scatterplotObj !== undefined) return;
+		scatterplotObj = new SCATTER.scatterplot(document.getElementById("canvas"), document.getElementById("lassoSvg"), SIZE);
+		animationObj = new ANIME.Animate(scatterplotObj);
+		(async () => { await initialLDRendering(weights); })();
+		(async () => {
+			const attrList = await FUNC.getAttrList(URL);
+			attrList.forEach((attr, i) => { document.getElementById("attrName_" + i).innerHTML = attr; });
+		})();
+	});
+
 	
 
 	async function initialLDRendering(weight) {
@@ -44,7 +58,7 @@ function App() {
 		scatterplotObj.addMeshes(coors, INITIALCOLOR);
 		function render() {
 			const currWeight = animationObj.executeAnimation();
-			if (currWeight != undefined) {
+			if (currWeight !== null) {
 				currWeight.forEach((d, idx) => { document.getElementById("slider_" + idx).value = d * 50; })
 			}
 			scatterplotObj.render();
@@ -78,13 +92,6 @@ function App() {
 		(async () => { await updateLDToTargetWeight(currWeight, weights, 750, false); })();
 	}
 
-	// initial function called when the page is loaded
-	useEffect(() => {
-		if (scatterplotObj !== undefined) return;
-		scatterplotObj = new SCATTER.scatterplot(document.getElementById("canvas"), SIZE);
-		animationObj = new ANIME.Animate(scatterplotObj);
-		(async () => { await initialLDRendering(weights); })();
-	});
 
 
 	// variables for lassoing groups
@@ -311,15 +318,6 @@ function App() {
 
 		}
 	}
-
-	useEffect(() => {
-		axios.get(URL + "get_attr_list")
-			.then((response) => {
-				response.data.forEach((attr, i) => {
-					document.getElementById("attrName_" + i).innerHTML = attr;
-				})
-			});
-	});
 
 
 

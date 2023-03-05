@@ -7,3 +7,7 @@ export async function getLDfromWeight(weight, url, size) {
 	return utils.scaleData(response.data, size)
 }
 
+export async function getAttrList(url) {
+	const response = await axios.get(url + "get_attr_list")
+	return response.data
+}
