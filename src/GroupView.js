@@ -13,6 +13,8 @@ const GroupView = (props) => {
 			'대전광역시', '세종특별자치시']
 	}
 
+	const [pointNum, setPointNum] = useState(0);
+
 	const [groupInfo, setGroupInfo] = useState([]);
 	const [isAddingGroup, setIsAddingGroup] = useState(false);
 	const [newGroupName, setNewGroupName] = useState("");
@@ -25,6 +27,7 @@ const GroupView = (props) => {
 	const [newGroupIdx, setNewGroupIdx] = useState(-1);
 
 	useEffect(() => {
+		props.onMountPointNum([pointNum, setPointNum]);
 		props.onMount([groupInfo, setGroupInfo]);
 	}, [groupInfo]);
 
@@ -127,9 +130,13 @@ const GroupView = (props) => {
 	}
 
 	function confirmGroup() {
+		const newGroupCoorBoolean = new Array(pointNum).fill(false);
+		newGroupCoor.forEach((coor) => {
+			newGroupCoorBoolean[coor] = true;
+		});
 		setGroupInfo([
 			...groupInfo, {
-				idx: newGroupIdx, coors: newGroupCoor, name: newGroupName,
+				idx: newGroupIdx, coors: newGroupCoorBoolean, name: newGroupName,
 				selected: false, shielded: false
 			}
 		]);

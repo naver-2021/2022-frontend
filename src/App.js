@@ -1,184 +1,89 @@
 import { useEffect, useRef } from 'react';
 import * as Three from "three";
 import './App.css';
-import * as pr from './pointRendering';
+import * as SCATTER from './scatterplot';
 import axios from 'axios';
 import * as d3 from 'd3';
 import robustPointInPolygon from "robust-point-in-polygon";
 import GroupView from './GroupView';
+import * as utils from "./utils";
+import * as FUNC from './functionalities';
+import * as ANIME from './animate';
+
+/* LIST of Constants */
+const URL      = 'http://gpu.hcil.snu.ac.kr:8888/'
+const COLORMAP = d3.schemeCategory10;
+const INITIALCOLOR = 0xaaaaaa;
+const SIZE     = 700;
+
+const ATTRLENGTH   = 8;
+const INITIALWEIGHT = new Array(ATTRLENGTH).fill(0.5); 
 
 
-const url = 'http://gpu.hcil.snu.ac.kr:8888/'
 
 function App() {
 	
+	// object that manges the rendering
+  let scatterplotObj, animationObj;
 
-	// define a function that sends query to the backend. The URL is http://gpu.hcil.snu.ac.kr:8888/
-	// query is a empty string for now.
-	// the function is a async function, so you can use await to wait for the response.
-	// use axios instead of fetch 
-	const attrLen = 8;
-	const weights = new Array(attrLen).fill(0.5);
-
-	const colorMap = d3.schemeCategory10;
-	const size = 700;
-	// for (let i = 0; i < attrLen; i++) {
-		
-	// 	sliderRefArr.push(useRef(null));
-	// }
+	/* list of variables to be mangaged by a component */
+	const weights  = JSON.parse(JSON.stringify(INITIALWEIGHT));
+	let currWeight = JSON.parse(JSON.stringify(INITIALWEIGHT));
 	
-
-	// variables for rendering
-
-	let currWeight = JSON.parse(JSON.stringify(weights));
-	let canvas, renderer, camera, scene, meshes;
-	const animation = [];
 	let coors;
 	let labels, prevLabels;
 	
 
 	async function initialLDRendering(weight) {
-		if (meshes !== undefined) {
-			return;
-		}
-		const weightString = weight.join(',')
-		const response = await axios.post(url + "weights_to_pr", { params: {weights: weightString}})
-		const data = response.data;
-		const xExtent = d3.extent(data, (d) => d[0]);
-		const yExtent = d3.extent(data, (d) => d[1]);
-		const xScale = d3.scaleLinear().domain(xExtent).range([0, canvas.width]);
-		const yScale = d3.scaleLinear().domain(yExtent).range([0, canvas.height]);
-		const scaledData = data.map((d) => {
-			return {
-				x: xScale(d[0]),
-				y: yScale(d[1]),
-			}
-		});
-		coors = scaledData;
-		labels = new Array(scaledData.length).fill(-1);
-		prevLabels = new Array(scaledData.length).fill(-1);
+		if (scatterplotObj.checkRendered()) { return; }
+		coors = await FUNC.getLDfromWeight(weight, URL, SIZE);
 
-		meshes = scaledData.map((d) => pr.generateMesh(d, 2, 0xaaaaaa));
-		meshes.forEach((mesh) => scene.add(mesh));
+		labels = new Array(coors.length).fill(-1);
+		prevLabels = new Array(coors.length).fill(-1);
+		setPointNum(coors.length);
+		scatterplotObj.addMeshes(coors, INITIALCOLOR);
 		function render() {
-			if (animation.length > 0) {
-				const currTime = Date.now();
-				const currAnimation = animation[0];
-				if (currAnimation.startTime === undefined) {
-					currAnimation.startTime = currTime;
-				}
-				const timeDiff = currTime - currAnimation.startTime;
-				if (timeDiff > currAnimation.time) {
-					animation.shift();
-				}
-				else {
-					const timeRatio = timeDiff / currAnimation.time;
-					const currWeight = currAnimation.startWeight.map((d, idx) => {
-						return d + (currAnimation.endWeight[idx] - d) * timeRatio;
-					});
-					currWeight.forEach((d, idx) => {
-						const slider = document.getElementById("slider_" + idx);
-						slider.value = d * 50;
-					});
-					const currCoor = currAnimation.startCoor.map((d, idx) => {
-						return {
-							x: d.x + (currAnimation.endCoor[idx].x - d.x) * timeRatio,
-							y: d.y + (currAnimation.endCoor[idx].y - d.y) * timeRatio,
-						}
-					});
-					meshes.forEach((mesh, idx) => mesh.position.set(currCoor[idx].x, currCoor[idx].y, 0));
-				}
+			const currWeight = animationObj.executeAnimation();
+			if (currWeight != undefined) {
+				currWeight.forEach((d, idx) => { document.getElementById("slider_" + idx).value = d * 50; })
 			}
-			renderer.render(scene, camera);
+			scatterplotObj.render();
 			requestAnimationFrame(render);
 		}
 		render();
-
-
 	}
 
-	async function getLD(weight) {
-		const weightString = weight.join(',')
-		const response = await axios.post(url + "weights_to_pr", { params: { weights: weightString } });
-		const data = response.data;
-		const xExtent = d3.extent(data, (d) => d[0]);
-		const yExtent = d3.extent(data, (d) => d[1]);
-		const xScale = d3.scaleLinear().domain(xExtent).range([0, canvas.width]);
-		const yScale = d3.scaleLinear().domain(yExtent).range([0, canvas.height]);
-		const scaledData = data.map((d) => {
-			return {
-				x: xScale(d[0]),
-				y: yScale(d[1]),
-			}
-		});
 
-		return scaledData;
-
-	}
-
-	async function updateLDToTargetWeight(initialWeight, targetWeight, step, time, isTargetCoor) {
+	async function updateLDToTargetWeight(initialWeight, targetWeight, time, isTargetCoor) {
 		
 		let targetCoor;	
-		// console.log(targetCoor)
 		if (isTargetCoor === false) {
-			targetCoor = await getLD(targetWeight);
-			registerAnimation(coors, targetCoor, targetWeight, targetWeight, time);
+			targetCoor = await FUNC.getLDfromWeight(targetWeight, URL, SIZE);
+			animationObj.registerAnimation(coors, targetCoor, initialWeight, targetWeight, time);
 		}
 		else {
-			targetCoor = await getLD(targetWeight);
-			registerAnimation(coors, targetCoor, initialWeight, targetWeight, time);
+			targetCoor = await FUNC.getLDfromWeight(targetWeight, URL, SIZE);
+			animationObj.registerAnimation(coors, targetCoor, initialWeight, targetWeight, time);
 		}
-
 		coors = JSON.parse(JSON.stringify(targetCoor));
 		currWeight = JSON.parse(JSON.stringify(targetWeight));
 		
-		
-		// registerAnimation(coors,)
 	}
 
-	function registerAnimation(startCoor, endCoor, startWeight, endWeight, time) {
-		animation.push({
-			startCoor: startCoor,
-			endCoor: endCoor,
-			startWeight: startWeight, 
-			endWeight: endWeight,
-			time: time,
-		})
-	}
-
-	function sliderChange(e) {
+	function updateLDBasedOnSlider(e) {
 		const idx = e.target.getAttribute('idx');
 		const value = e.target.value / 50;
 		currWeight.forEach((d, idx) => { weights[idx] = d; });
 		weights[idx] = value;
-		(async () => {
-			await updateLDToTargetWeight(currWeight, weights, 10, 750, false);
-
-		})();
+		(async () => { await updateLDToTargetWeight(currWeight, weights, 750, false); })();
 	}
 
-
-
-
-
+	// initial function called when the page is loaded
 	useEffect(() => {
-		if (canvas !== undefined) {
-			return;
-		}
-		canvas = document.getElementById("canvas");
-
-		renderer = new Three.WebGLRenderer({ canvas : canvas });
-		camera = new Three.OrthographicCamera(
-			0, canvas.width, canvas.height, 0, 0, 1
-		);
-		camera.position.set(0, 0, 1);
-		scene  = new Three.Scene();
-		scene.background = new Three.Color(0xffffff);
-
-
-		(async () => {
-			await initialLDRendering(weights);
-		})();
+		if (scatterplotObj !== undefined) return;
+		scatterplotObj = new SCATTER.scatterplot(document.getElementById("canvas"), SIZE);
+		animationObj = new ANIME.Animate(scatterplotObj);
+		(async () => { await initialLDRendering(weights); })();
 	});
 
 
@@ -194,29 +99,35 @@ function App() {
 	let groupInfo = null;
 	let setGroupInfo = null;
 
+	let pointNum = null;
+	let setPointNum = null;
+
 	const onGroupViewMount = (dataFromChild) => {
 		groupInfo = dataFromChild[0];
 		setGroupInfo = dataFromChild[1];
 	}
+	const onMountPointNum  = (dataFromChild) => {
+		pointNum = dataFromChild[0];
+		setPointNum = dataFromChild[1];
+	}
 
 	function updateColor() {
-		meshes.forEach((mesh, idx) => {
-			if (labels[idx] === -1) {
-				mesh.material.color.set(0xaaaaaa);
-				// set render order to 0
-				mesh.position.z = 0;
+		labels.forEach((label, idx) => {
+			if (label === -1) { 
+				scatterplotObj.setMeshColor(idx, 0xaaaaaa);
+				scatterplotObj.setMeshPosition(idx, [scatterplotObj.getMeshPosition(idx)[0], scatterplotObj.getMeshPosition(idx)[1], 0]);
 			}
 			else {
-				mesh.material.color.set(colorMap[labels[idx] % 10]);
-				mesh.position.z = 0.0000000000001 * labels[idx];
-				mesh.scale.set(1, 1, 1);
+				scatterplotObj.setMeshColor(idx, COLORMAP[label % 10]);
+				scatterplotObj.setMeshPosition(idx, [scatterplotObj.getMeshPosition(idx)[0], scatterplotObj.getMeshPosition(idx)[1], 0.0000000000001 * label]);
+				scatterplotObj.setMeshScale(idx, [1, 1, 1]);
 			}
-		});
-		groupInfo.forEach((group, idx) => {
+		})
+		groupInfo.forEach((group, i) => {
 			if (group.selected) {
 				group.coors.forEach((coor, idx) => {
 					if (coor) {
-						meshes[idx].scale.set(1.5, 1.5, 1.5);
+						scatterplotObj.setMeshScale(idx, [1.5, 1.5, 1.5]);
 					}
 				});
 			}
@@ -225,12 +136,10 @@ function App() {
 
 	function tempUpdateLabel(newGroupIdx, coors) {
 		const newLabels = JSON.parse(JSON.stringify(prevLabels));
-		console.log(coors, newGroupIdx)
 		coors.forEach((idx) => {
 			newLabels[idx] = newGroupIdx;
 		});
 		labels = newLabels;
-		console.log(labels);
 	}
 
 	function updateColorBasedOnGroupView(newGroupIdx, coors) {
@@ -260,13 +169,13 @@ function App() {
 					.attr("cy", startPosition[1])
 					.attr("r", 5)
 					.attr("fill", "None")
-					.attr("stroke", colorMap[currGroupNum % 10])
+					.attr("stroke", COLORMAP[currGroupNum % 10])
 
 				d3.select(e.target)
 				  .append("path")
 					.attr("id", "currentLassoPath")
 					.attr("fill", "None")
-					.attr("stroke", colorMap[currGroupNum % 10])
+					.attr("stroke", COLORMAP[currGroupNum % 10])
 					.attr("stroke-dasharray", "5,5");
 			}
 			else if (isLassoing) {
@@ -301,11 +210,8 @@ function App() {
 						.select("#currentLassoPath")
 						.attr("d", d3.line()(polygon))
 
-					// console.log(polygon, coors[300])
 					coors.forEach((xy, i) => {
-						// console.log(lassoPaths, xy)
-
-						if (robustPointInPolygon(lassoPaths, [xy.x, size - xy.y]) === -1) {
+						if (robustPointInPolygon(lassoPaths, [xy[0], SIZE - xy[1]]) === -1) {
 							groups[currGroupNum][i] = true;
 							labels[i] = currGroupNum;
 						}
@@ -314,6 +220,7 @@ function App() {
 							labels[i] = prevLabels[i];
 						}
 					});
+					console.log(labels)
 					updateColor();
 				}
 			}
@@ -327,10 +234,10 @@ function App() {
 	function runQuery(groupInfo, queryType) {
 		// TODO
 		if (queryType == "merge") {
-			let selectedGroups = groupInfo.filter((group) => group.selected);
-			const shieldedGroups = selectedGroups.filter((group) => group.shielded);
-			selectedGroups = selectedGroups.filter((group) => !group.shielded);
-			if (selectedGroups.length < 1) {
+			const selectedAndShieldedGroups = groupInfo.filter((group) => group.selected);
+			const shieldedGroups = selectedAndShieldedGroups.filter((group) => group.shielded);
+			const selectedGroups = selectedAndShieldedGroups.filter((group) => !group.shielded);
+			if (selectedAndShieldedGroups.length < 1) {
 				alert("Please select at least one group");
 				return;
 			}
@@ -344,21 +251,22 @@ function App() {
 			const indexListString = indexList.join(",");
 
 			if (shieldedGroups.length > 0) {
-				const shieldIndexList = []
+				let shieldIndexList = []
 				shieldedGroups.forEach((group) => {
 					const groupIndexList = group.coors.map((coor, i) => i).filter((i) => group.coors[i]);
-					shieldIndexList.push(groupIndexList);
+					shieldIndexList = shieldIndexList.concat(groupIndexList);
 				});
 				const shieldIndexListString = JSON.stringify(shieldIndexList);
 				(async () => {
-					const response = await axios.post(url + "query_merge_cluster", { params: { merge: indexListString, indices: shieldIndexListString } });
+					console.log(shieldIndexList, indexList)
+					const response = await axios.post(URL + "query_merge_cluster", { params: { merge: indexListString, indices: shieldIndexListString } });
 					const newWeight = response.data.weights;
 					await updateLDToTargetWeight(currWeight, newWeight, 10, 750, true);
 				})();
 			}
 			else {
 				(async () => {
-					const response = await axios.post(url + "query_merge", { params: { index: indexListString } });
+					const response = await axios.post(URL + "query_merge", { params: { index: indexListString } });
 					const newWeight = response.data.weights;
 					await updateLDToTargetWeight(currWeight, newWeight, 10, 750, true);
 				})();
@@ -376,17 +284,36 @@ function App() {
 				const groupIndexList = group.coors.map((coor, i) => i).filter((i) => group.coors[i]);
 				indexList.push(groupIndexList);
 			});
+			console.log(indexList.length)
 			const indexListString = JSON.stringify(indexList);
 			(async () => {
-				const response = await axios.post(url + "query_cluster", { params: { indices: indexListString } });
+				const response = await axios.post(URL + "query_cluster", { params: { indices: indexListString } });
 				const newWeight = response.data.weights;
 				await updateLDToTargetWeight(currWeight, newWeight, 10, 750, true);
 			})();
 		}
+		if (queryType == "split") {
+			const selectedGroups = groupInfo.filter((group) => group.selected);
+			if (selectedGroups.length > 1) {
+				alert("Please select only one group");
+				return;
+			}
+			let indexList = [];
+			selectedGroups.forEach((group) => {
+				const groupIndexList = group.coors.map((coor, i) => i).filter((i) => group.coors[i]);
+				indexList = indexList.concat(groupIndexList);
+			});
+			(async () => {
+				const response = await axios.post(URL + "query_split", { params: { index: indexList } });
+				const newWeight = response.data.weights;
+				await updateLDToTargetWeight(currWeight, newWeight, 10, 750, true);
+			})();
+
+		}
 	}
 
 	useEffect(() => {
-		axios.get(url + "get_attr_list")
+		axios.get(URL + "get_attr_list")
 			.then((response) => {
 				response.data.forEach((attr, i) => {
 					document.getElementById("attrName_" + i).innerHTML = attr;
@@ -401,21 +328,21 @@ function App() {
 			<div className="AppWrapper">
 				<div>
 					<canvas
-						width={size}
-						height={size}
+						width={SIZE}
+						height={SIZE}
 						id="canvas"
 						style={{ border: '1px solid black', position: 'absolute' }}
 					></canvas>
 					<svg
 						id="lassoSvg"
-						width={size}
-						height={size}
+						width={SIZE}
+						height={SIZE}
 						style={{ position: 'absolute', border: '1px solid black' }}
 					></svg>
 				</div>
 				<div className="sliderDiv" style = {{ marginLeft: 700}}>
 					<h1>Slider</h1>
-					{new Array(attrLen).fill(0).map((_, i) => {
+					{new Array(ATTRLENGTH).fill(0).map((_, i) => {
 						return (
 							<div className="slider" key={i}>
 								<div id={"attrName_" + i}>
@@ -426,20 +353,21 @@ function App() {
 									max="50"
 									defaultValue="25"
 									className="slider"
-									// id="slider"
 									id={"slider_" + i}
-									onMouseUp={sliderChange}
+									onMouseUp={updateLDBasedOnSlider}
 									idx={i}
-									// ref={sliderRefArr[i]}
 								></input>
 							</div>
 						);
 					})}
 				</div>
-				<GroupView onMount={onGroupViewMount} runQuery={runQuery}
+				<GroupView onMount={onGroupViewMount} 
+					onMountPointNum={onMountPointNum}
+				runQuery={runQuery}
 					updateColorBasedOnGroupView={updateColorBasedOnGroupView}
 					updateColor={updateColor}
 					confirmNewGroupLabel={confirmNewGroupLabel}
+					pointNum={pointNum}
 				/>
 				
 			</div>
