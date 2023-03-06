@@ -6,7 +6,6 @@ import axios from 'axios';
 import * as d3 from 'd3';
 import robustPointInPolygon from "robust-point-in-polygon";
 import GroupView from './GroupView';
-import * as utils from "./utils";
 import * as FUNC from './functionalities';
 import * as ANIME from './animate';
 
@@ -37,51 +36,20 @@ function App() {
 	// initial function called when the page is loaded
 	useEffect(() => {
 		if (scatterplotObj !== undefined) return;
-		scatterplotObj = new SCATTER.scatterplot(document.getElementById("canvas"), document.getElementById("lassoSvg"), SIZE);
-		animationObj = new ANIME.Animate(scatterplotObj);
-		(async () => { await initialLDRendering(weights); })();
+		scatterplotObj = new SCATTER.scatterplot(
+			document.getElementById("canvas"), document.getElementById("lassoSvg"), 
+			updateWeightSlider,
+			INITIALWEIGHT, URL, SIZE, COLORMAP
+		);
+		(async () => { await scatterplotObj.initialLDRendering(INITIALCOLOR) })();
 		(async () => {
-			const attrList = await FUNC.getAttrList(URL);
+			const attrList = await scatterplotObj.getAttributeList();
 			attrList.forEach((attr, i) => { document.getElementById("attrName_" + i).innerHTML = attr; });
 		})();
 	});
 
-	
-
-	async function initialLDRendering(weight) {
-		if (scatterplotObj.checkRendered()) { return; }
-		coors = await FUNC.getLDfromWeight(weight, URL, SIZE);
-
-		labels = new Array(coors.length).fill(-1);
-		prevLabels = new Array(coors.length).fill(-1);
-		setPointNum(coors.length);
-		scatterplotObj.addMeshes(coors, INITIALCOLOR);
-		function render() {
-			const currWeight = animationObj.executeAnimation();
-			if (currWeight !== null) {
-				currWeight.forEach((d, idx) => { document.getElementById("slider_" + idx).value = d * 50; })
-			}
-			scatterplotObj.render();
-			requestAnimationFrame(render);
-		}
-		render();
-	}
-
-
-	async function updateLDToTargetWeight(initialWeight, targetWeight, time, isTargetCoor) {
-		
-		let targetCoor;	
-		if (isTargetCoor === false) {
-			targetCoor = await FUNC.getLDfromWeight(targetWeight, URL, SIZE);
-			animationObj.registerAnimation(coors, targetCoor, initialWeight, targetWeight, time);
-		}
-		else {
-			targetCoor = await FUNC.getLDfromWeight(targetWeight, URL, SIZE);
-			animationObj.registerAnimation(coors, targetCoor, initialWeight, targetWeight, time);
-		}
-		coors = JSON.parse(JSON.stringify(targetCoor));
-		currWeight = JSON.parse(JSON.stringify(targetWeight));
-		
+	function updateWeightSlider(weights) {
+		weights.forEach((weight, idx) => { document.getElementById("slider_" + idx).value = weight * 50; });
 	}
 
 	function updateLDBasedOnSlider(e) {
@@ -89,7 +57,10 @@ function App() {
 		const value = e.target.value / 50;
 		currWeight.forEach((d, idx) => { weights[idx] = d; });
 		weights[idx] = value;
-		(async () => { await updateLDToTargetWeight(currWeight, weights, 750, false); })();
+		(async () => { 
+			await scatterplotObj.updateLDToTargetWeight(weights, weights, 750);
+			currWeight = JSON.parse(JSON.stringify(weights));
+		 })();
 	}
 
 
@@ -161,47 +132,47 @@ function App() {
 
 	// lasso setting
 	useEffect(() => {
-		function clickLasso(e) {
-			if (!isLassoing) {
-				isLassoing = true;
-				currGroupNum = groupInfo.length;
-				groups[currGroupNum] = new Array(coors.length).fill(false);
-				startPosition = [e.offsetX, e.offsetY];
-				lassoPaths = [[startPosition[0], startPosition[1]]];
-				prevLabels = JSON.parse(JSON.stringify(labels));
-				d3.select(e.target)
-					.append("circle")
-					.attr("id", "currentLassoCircle")
-					.attr("cx", startPosition[0])
-					.attr("cy", startPosition[1])
-					.attr("r", 5)
-					.attr("fill", "None")
-					.attr("stroke", COLORMAP[currGroupNum % 10])
+		// function clickLasso(e) {
+		// 	if (!isLassoing) {
+		// 		isLassoing = true;
+		// 		currGroupNum = groupInfo.length;
+		// 		groups[currGroupNum] = new Array(coors.length).fill(false);
+		// 		startPosition = [e.offsetX, e.offsetY];
+		// 		lassoPaths = [[startPosition[0], startPosition[1]]];
+		// 		prevLabels = JSON.parse(JSON.stringify(labels));
+		// 		d3.select(e.target)
+		// 			.append("circle")
+		// 			.attr("id", "currentLassoCircle")
+		// 			.attr("cx", startPosition[0])
+		// 			.attr("cy", startPosition[1])
+		// 			.attr("r", 5)
+		// 			.attr("fill", "None")
+		// 			.attr("stroke", COLORMAP[currGroupNum % 10])
 
-				d3.select(e.target)
-				  .append("path")
-					.attr("id", "currentLassoPath")
-					.attr("fill", "None")
-					.attr("stroke", COLORMAP[currGroupNum % 10])
-					.attr("stroke-dasharray", "5,5");
-			}
-			else if (isLassoing) {
-				isLassoing = false;
-				d3.select(e.target)
-					.select("#currentLassoCircle")
-					.remove();
+		// 		d3.select(e.target)
+		// 		  .append("path")
+		// 			.attr("id", "currentLassoPath")
+		// 			.attr("fill", "None")
+		// 			.attr("stroke", COLORMAP[currGroupNum % 10])
+		// 			.attr("stroke-dasharray", "5,5");
+		// 	}
+		// 	else if (isLassoing) {
+		// 		isLassoing = false;
+		// 		d3.select(e.target)
+		// 			.select("#currentLassoCircle")
+		// 			.remove();
 				
-				d3.select(e.target)
-					.select("#currentLassoPath")
-					.remove();
+		// 		d3.select(e.target)
+		// 			.select("#currentLassoPath")
+		// 			.remove();
 				
-				setGroupInfo([...groupInfo, {
-					idx: currGroupNum, coors: groups[currGroupNum],
-					selected: false, shielded: false
-				}]);
+		// 		setGroupInfo([...groupInfo, {
+		// 			idx: currGroupNum, coors: groups[currGroupNum],
+		// 			selected: false, shielded: false
+		// 		}]);
 				
-			}
-		}
+		// 	}
+		// }
 
 		function mouseMoveLasso(e) {
 			if (isLassoing) {
@@ -233,9 +204,9 @@ function App() {
 			}
 		}
 
-		d3.select("#lassoSvg")
-			.on("click", clickLasso)
-			.on("mousemove", mouseMoveLasso)
+		// d3.select("#lassoSvg")
+		// 	.on("click", clickLasso)
+		// 	.on("mousemove", mouseMoveLasso)
 	})
 
 	function runQuery(groupInfo, queryType) {
@@ -268,14 +239,16 @@ function App() {
 					console.log(shieldIndexList, indexList)
 					const response = await axios.post(URL + "query_merge_cluster", { params: { merge: indexListString, indices: shieldIndexListString } });
 					const newWeight = response.data.weights;
-					await updateLDToTargetWeight(currWeight, newWeight, 10, 750, true);
+					// await updateLDToTargetWeight(currWeight, newWeight, 10, 750, true);
+					// TODO
 				})();
 			}
 			else {
 				(async () => {
 					const response = await axios.post(URL + "query_merge", { params: { index: indexListString } });
 					const newWeight = response.data.weights;
-					await updateLDToTargetWeight(currWeight, newWeight, 10, 750, true);
+					// await updateLDToTargetWeight(currWeight, newWeight, 10, 750, true);
+					// TODO
 				})();
 			}
 	
@@ -296,7 +269,8 @@ function App() {
 			(async () => {
 				const response = await axios.post(URL + "query_cluster", { params: { indices: indexListString } });
 				const newWeight = response.data.weights;
-				await updateLDToTargetWeight(currWeight, newWeight, 10, 750, true);
+				// await updateLDToTargetWeight(currWeight, newWeight, 10, 750, true);
+				// TODO
 			})();
 		}
 		if (queryType == "split") {
@@ -313,7 +287,8 @@ function App() {
 			(async () => {
 				const response = await axios.post(URL + "query_split", { params: { index: indexList } });
 				const newWeight = response.data.weights;
-				await updateLDToTargetWeight(currWeight, newWeight, 10, 750, true);
+				// await updateLDToTargetWeight(currWeight, newWeight, 10, 750, true);
+				// TODO
 			})();
 
 		}

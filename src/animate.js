@@ -1,8 +1,8 @@
 
 export class Animate {
-	constructor(scatterplotObj) {
+	constructor() {
 		this.animationList = [];
-		this.scatterplotObj = scatterplotObj;
+		// this.scatterplotObj = scatterplotObj;
 	}
 
 	executeAnimation() {
@@ -16,10 +16,9 @@ export class Animate {
 			currAnimation.startTime = currTime;
 		}
 		const timeDiff = currTime - currAnimation.startTime;
-		if (timeDiff > currAnimation.duration) { this.animationList.shift(); return null; }
+		if (timeDiff > currAnimation.duration) { this.animationList.shift(); return undefined; }
 		else {
 			const progress = timeDiff / currAnimation.duration;
-			console.log(progress, timeDiff, currAnimation.duration)
 			const currWeight = currAnimation.startWeight.map((weight, idx) => {
 				return weight + (currAnimation.endWeight[idx] - weight) * progress;
 			})
@@ -29,8 +28,11 @@ export class Animate {
 					corr[1] + (currAnimation.endCorr[idx][1] - corr[1]) * progress,
 				]
 			});
-			this.scatterplotObj.setMeshesPosition(currCoor);
-			return currWeight;
+			// this.scatterplotObj.setMeshesPosition(currCoor);
+			return {
+				weights: currWeight,
+				coors: currCoor,
+			}
 		}
 	}
 
