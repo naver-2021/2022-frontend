@@ -1,13 +1,10 @@
 import { useEffect, useRef } from 'react';
-import * as Three from "three";
 import './App.css';
 import * as SCATTER from './scatterplot';
 import axios from 'axios';
 import * as d3 from 'd3';
 import robustPointInPolygon from "robust-point-in-polygon";
 import GroupView from './GroupView';
-import * as FUNC from './functionalities';
-import * as ANIME from './animate';
 
 /* LIST of Constants */
 const URL      = 'http://gpu.hcil.snu.ac.kr:8888/'
@@ -18,20 +15,22 @@ const SIZE     = 700;
 const ATTRLENGTH   = 8;
 const INITIALWEIGHT = new Array(ATTRLENGTH).fill(0.5); 
 
-
-
 function App() {
 	
 	// object that manges the rendering
-  let scatterplotObj, animationObj;
+  let scatterplotObj;
 
 	/* list of variables to be mangaged by a component */
 	const weights  = JSON.parse(JSON.stringify(INITIALWEIGHT));
 	let currWeight = JSON.parse(JSON.stringify(INITIALWEIGHT));
 	
-	let coors;
 	let labels, prevLabels;
 
+	// variables for managing groups for views
+	let setGroupInfo = null;
+	let groupInfo = null;
+	let pointNum = null;
+	let setPointNum = null;
 
 	// initial function called when the page is loaded
 	useEffect(() => {
@@ -65,21 +64,6 @@ function App() {
 
 
 
-	// variables for lassoing groups
-	let lassos = {};
-	let isLassoing = false;
-	let startPosition;
-
-	const groups = {};
-	let currGroupNum = -1;
-	let lassoPaths;
-
-	let groupInfo = null;
-	let setGroupInfo = null;
-
-	let pointNum = null;
-	let setPointNum = null;
-
 	const onGroupViewMount = (dataFromChild) => {
 		groupInfo = dataFromChild[0];
 		setGroupInfo = dataFromChild[1];
@@ -87,29 +71,6 @@ function App() {
 	const onMountPointNum  = (dataFromChild) => {
 		pointNum = dataFromChild[0];
 		setPointNum = dataFromChild[1];
-	}
-
-	function updateColor() {
-		labels.forEach((label, idx) => {
-			if (label === -1) { 
-				scatterplotObj.setMeshColor(idx, 0xaaaaaa);
-				scatterplotObj.setMeshPosition(idx, [scatterplotObj.getMeshPosition(idx)[0], scatterplotObj.getMeshPosition(idx)[1], 0]);
-			}
-			else {
-				scatterplotObj.setMeshColor(idx, COLORMAP[label % 10]);
-				scatterplotObj.setMeshPosition(idx, [scatterplotObj.getMeshPosition(idx)[0], scatterplotObj.getMeshPosition(idx)[1], 0.0000000000001 * label]);
-				scatterplotObj.setMeshScale(idx, [1, 1, 1]);
-			}
-		})
-		groupInfo.forEach((group, i) => {
-			if (group.selected) {
-				group.coors.forEach((coor, idx) => {
-					if (coor) {
-						scatterplotObj.setMeshScale(idx, [1.5, 1.5, 1.5]);
-					}
-				});
-			}
-		});
 	}
 
 	function tempUpdateLabel(newGroupIdx, coors) {
@@ -122,92 +83,13 @@ function App() {
 
 	function updateColorBasedOnGroupView(newGroupIdx, coors) {
 		tempUpdateLabel(newGroupIdx, coors);
-		updateColor();
+		scatterplotObj.updateColor();
 	}
 
 	function confirmNewGroupLabel() {
 		prevLabels = JSON.parse(JSON.stringify(labels));
 	}
 
-
-	// lasso setting
-	useEffect(() => {
-		// function clickLasso(e) {
-		// 	if (!isLassoing) {
-		// 		isLassoing = true;
-		// 		currGroupNum = groupInfo.length;
-		// 		groups[currGroupNum] = new Array(coors.length).fill(false);
-		// 		startPosition = [e.offsetX, e.offsetY];
-		// 		lassoPaths = [[startPosition[0], startPosition[1]]];
-		// 		prevLabels = JSON.parse(JSON.stringify(labels));
-		// 		d3.select(e.target)
-		// 			.append("circle")
-		// 			.attr("id", "currentLassoCircle")
-		// 			.attr("cx", startPosition[0])
-		// 			.attr("cy", startPosition[1])
-		// 			.attr("r", 5)
-		// 			.attr("fill", "None")
-		// 			.attr("stroke", COLORMAP[currGroupNum % 10])
-
-		// 		d3.select(e.target)
-		// 		  .append("path")
-		// 			.attr("id", "currentLassoPath")
-		// 			.attr("fill", "None")
-		// 			.attr("stroke", COLORMAP[currGroupNum % 10])
-		// 			.attr("stroke-dasharray", "5,5");
-		// 	}
-		// 	else if (isLassoing) {
-		// 		isLassoing = false;
-		// 		d3.select(e.target)
-		// 			.select("#currentLassoCircle")
-		// 			.remove();
-				
-		// 		d3.select(e.target)
-		// 			.select("#currentLassoPath")
-		// 			.remove();
-				
-		// 		setGroupInfo([...groupInfo, {
-		// 			idx: currGroupNum, coors: groups[currGroupNum],
-		// 			selected: false, shielded: false
-		// 		}]);
-				
-		// 	}
-		// }
-
-		function mouseMoveLasso(e) {
-			if (isLassoing) {
-				const currPosition = [e.offsetX, e.offsetY];
-				const prevPosition = lassoPaths[lassoPaths.length - 1];
-				const distance = Math.sqrt((currPosition[0] - prevPosition[0]) ** 2 + (currPosition[1] - prevPosition[1]) ** 2);
-				if (distance > 8) {
-					lassoPaths.push(currPosition);
-
-					// draw lasso path
-					const polygon = [...lassoPaths, startPosition]
-					d3.select(e.target)
-						.select("#currentLassoPath")
-						.attr("d", d3.line()(polygon))
-
-					coors.forEach((xy, i) => {
-						if (robustPointInPolygon(lassoPaths, [xy[0], SIZE - xy[1]]) === -1) {
-							groups[currGroupNum][i] = true;
-							labels[i] = currGroupNum;
-						}
-						else {
-							groups[currGroupNum][i] = false;
-							labels[i] = prevLabels[i];
-						}
-					});
-					console.log(labels)
-					updateColor();
-				}
-			}
-		}
-
-		// d3.select("#lassoSvg")
-		// 	.on("click", clickLasso)
-		// 	.on("mousemove", mouseMoveLasso)
-	})
 
 	function runQuery(groupInfo, queryType) {
 		// TODO
@@ -338,7 +220,7 @@ function App() {
 					onMountPointNum={onMountPointNum}
 				runQuery={runQuery}
 					updateColorBasedOnGroupView={updateColorBasedOnGroupView}
-					updateColor={updateColor}
+					// updateColor={scattertplotObj.updateColor} TODO
 					confirmNewGroupLabel={confirmNewGroupLabel}
 					pointNum={pointNum}
 				/>
