@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import * as FUNC from "./functionalities";
+import * as utils from "./utils"
 
 const url = 'http://gpu.hcil.snu.ac.kr:8888/'
 
@@ -13,11 +14,22 @@ const GroupView = (props) => {
 	const [isAddingGroup, setIsAddingGroup] = useState(false);
 	const [newGroupName, setNewGroupName] = useState("");
 
+	const [newGroupFilterDict, setNewGroupFilterDict] = useState(getNewGroupFilterDict());
+	const [newGroupCoor, setNewGroupCoor] = useState([]);
+	const [newGroupIdx, setNewGroupIdx] = useState(-1);
+
+	useEffect(() => {
+		props.onMountPointNum([pointNum, setPointNum]);
+		props.onMountSetGroupInfo([groupInfo, setGroupInfo]);
+	}, [groupInfo]);
+
+	function runSplitQuery() { props.runQuery(groupInfo, "split") }
+	function runSeparateQuery() { props.runQuery(groupInfo, "separate") }
+	function runMergeQuery() { props.runQuery(groupInfo, "merge") }
+
 	function getNewGroupFilterDict() {
 		let newGroupFilterDict = {};
-		// console.log(Object.keys(filterOptions))
 		for (let key of Object.keys(filterOptions)) { newGroupFilterDict[key] = new Set(); }
-		console.log(newGroupFilterDict)
 		return newGroupFilterDict;
 	}
 
@@ -26,20 +38,6 @@ const GroupView = (props) => {
 		for (let key of Object.keys(filterOptions)) { copiedNewGroupFilterDict[key] = new Set([...newGroupFilterDict[key]]); }
 		return copiedNewGroupFilterDict;
 	}
-
-	const [newGroupFilterDict, setNewGroupFilterDict] = useState(getNewGroupFilterDict());
-
-	const [newGroupCoor, setNewGroupCoor] = useState([]);
-	const [newGroupIdx, setNewGroupIdx] = useState(-1);
-
-	useEffect(() => {
-		props.onMountPointNum([pointNum, setPointNum]);
-		props.onMountSetGroupInfo([groupInfo, setGroupInfo]);
-
-		// for (let key in newGroupFilterDict) {
-		// 	newGroupFilterDict[key][1](new Set());
-		// }
-	}, [groupInfo]);
 
 	function onClickSelectBox(e) {
 		const groupIdx = e.target.className.split("_")[1];
@@ -54,115 +52,47 @@ const GroupView = (props) => {
 		groupInfo[groupIdx].shielded = checked;
 	}
 
-	function runSplitQuery() { props.runQuery(groupInfo, "split")}
-
-	function runSeparateQuery() { props.runQuery(groupInfo, "separate")}
-
-	function runMergeQuery() { props.runQuery(groupInfo, "merge") }
-
-	function addGroup(e) {
-		// get max group info index
-		setNewGroupFilterDict(getNewGroupFilterDict());
-		console.log(newGroupFilterDict)
-
-		console.log(groupInfo);
-		const maxIdx = groupInfo.reduce((max, group) => {
-			return max > group.idx ? max : group.idx;
-		}, -1) + 1;
-		setNewGroupName("Group_" + maxIdx);
-		setIsAddingGroup(true);
-		setNewGroupIdx(maxIdx);
-
-		console.log(maxIdx);
-
-		e.target.disabled = true;
-	}
-
-	function getCurrentAxiosParamJson(filterOption, filterValue, checked) {
-		const beforeDict = {
-			"gender": [...newGroupFilterDict["Gender"]],
-			"age": [...newGroupFilterDict["Age"]],
-			"addr": [...newGroupFilterDict["Loc"]]
-		};
-		if (checked) {
-			if (filterOption == "Gender") 
-				beforeDict["gender"] = [...beforeDict["gender"], filterValue];
-			else if (filterOption == "Age")
-				beforeDict["age"] = [...beforeDict["age"], filterValue];
-			else if (filterOption == "Loc") 
-				beforeDict["addr"] = [...beforeDict["addr"], filterValue];
-		}
-		else {
-			if (filterOption == "Gender")
-				beforeDict["gender"] = beforeDict["gender"].filter((value) => value !== filterValue);
-			else if (filterOption == "Age")
-				beforeDict["age"] = beforeDict["age"].filter((value) => value !== filterValue);
-			else if (filterOption == "Loc")
-				beforeDict["addr"] = beforeDict["addr"].filter((value) => value !== filterValue);
-		}
-
-		if (beforeDict["gender"].length === 0) {
-			delete beforeDict["gender"];
-		} 
-		if (beforeDict["age"].length === 0) {
-			delete beforeDict["age"];
-		}
-		if (beforeDict["addr"].length === 0) {
-			delete beforeDict["addr"];
-		}
-
-		return beforeDict;
-	}
 
 	function adjustFilter(e) {
-
 		const filterOption = e.target.name;
 		const filterValue = e.target.value;
 		const checked = e.target.checked;
 		if (checked) {
 			const copiedNewGroupFilterDict = copyNewGroupFilterDict(newGroupFilterDict);
-			copiedNewGroupFilterDict[filterOption][1](new Set([
-				...copiedNewGroupFilterDict[filterOption][0], filterValue
-			]));
+			copiedNewGroupFilterDict[filterOption] = new Set([
+				...copiedNewGroupFilterDict[filterOption], filterValue
+			]);
 			setNewGroupFilterDict(copiedNewGroupFilterDict);
 		}
 		else {
-
+			const copiedNewGroupFilterDict = copyNewGroupFilterDict(newGroupFilterDict);
+			copiedNewGroupFilterDict[filterOption].delete(filterValue);
+			setNewGroupFilterDict(copiedNewGroupFilterDict);
 		}
-		// if (checked) {
-		// 	newGroupFilterDict[filterOption][1](new Set([
-		// 		...newGroupFilterDict[filterOption][0], filterValue
-		// 	]));
-		// }
-		// else {
-		// 	newGroupFilterDict[filterOption][1](
-		// 		new Set(
-		// 			[...newGroupFilterDict[filterOption][0]].filter((value) => value !== filterValue)
-		// 		)
-		// 	)
-		// }
-
-		const filterParam = getCurrentAxiosParamJson(filterOption, filterValue, checked);
+		const filterParam = FUNC.getGroupFilterParam(newGroupFilterDict, filterOption, filterValue, checked);
 		axios.post(url + 'filter',filterParam)
 			.then((res) => {
 				setNewGroupCoor(res.data);
 				props.updateColorBasedOnGroupView(newGroupIdx, res.data)
 			});
-		
+	}
 
+	function addGroup(e) {
+		setNewGroupFilterDict(getNewGroupFilterDict());
+		const maxIdx = props.getGroupInfo().length
+		setNewGroupName("Group_" + maxIdx);
+		setIsAddingGroup(true);
+		setNewGroupIdx(maxIdx);
+		e.target.disabled = true;
 	}
 
 	function confirmGroup() {
-		const newGroupCoorBoolean = new Array(pointNum).fill(false);
-		newGroupCoor.forEach((coor) => {
-			newGroupCoorBoolean[coor] = true;
+		const newGroupCoorBoolean = utils.indicesToBooleanArray(newGroupCoor, pointNum);
+		props.addGroupInfo({
+			id: newGroupIdx, coors: newGroupCoorBoolean, name: newGroupName, 
+			selected: false, shielded: false
 		});
-		setGroupInfo([
-			...groupInfo, {
-				idx: newGroupIdx, coors: newGroupCoorBoolean, name: newGroupName,
-				selected: false, shielded: false
-			}
-		]);
+		setGroupInfo(props.getGroupInfo());
 
 		document.getElementsByClassName("groupAddButton")[0].disabled = false;
 		setIsAddingGroup(false);
@@ -170,7 +100,6 @@ const GroupView = (props) => {
 		setNewGroupIdx(-1);
 		setNewGroupCoor([]);
 		setNewGroupFilterDict(getNewGroupFilterDict());
-
 		props.confirmNewGroupLabel()
 	}
 	return (

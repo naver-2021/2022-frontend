@@ -9,3 +9,9 @@ export function scaleData(data, canvasSize) {
 
 	return scaledData;
 }
+
+export function indicesToBooleanArray(indices, length) {
+	const booleanArray = new Array(length).fill(false);
+	indices.forEach(idx => booleanArray[idx] = true);
+	return booleanArray;
+}

@@ -21,3 +21,32 @@ export function getFilterOptions() {
 			'대전광역시', '세종특별자치시']
 	};
 }
+
+export function getGroupFilterParam(newGroupFilterDict, filterOption, filterValue, checked) {
+	const beforeDict = {
+		"gender": [...newGroupFilterDict["Gender"]],
+		"age": [...newGroupFilterDict["Age"]],
+		"addr": [...newGroupFilterDict["Loc"]]
+	};
+	if (checked) {
+			if (filterOption == "Gender")
+				beforeDict["gender"] = [...beforeDict["gender"], filterValue];
+			else if (filterOption == "Age")
+				beforeDict["age"] = [...beforeDict["age"], filterValue];
+			else if (filterOption == "Loc")
+				beforeDict["addr"] = [...beforeDict["addr"], filterValue];
+		}
+		else {
+			if (filterOption == "Gender")
+				beforeDict["gender"] = beforeDict["gender"].filter((value) => value !== filterValue);
+			else if (filterOption == "Age")
+				beforeDict["age"] = beforeDict["age"].filter((value) => value !== filterValue);
+			else if (filterOption == "Loc")
+				beforeDict["addr"] = beforeDict["addr"].filter((value) => value !== filterValue);
+		}
+	if (beforeDict["gender"].length === 0) delete beforeDict["gender"];
+	if (beforeDict["age"].length === 0)    delete beforeDict["age"];
+	if (beforeDict["addr"].length === 0)   delete beforeDict["addr"];
+
+	return beforeDict;
+}

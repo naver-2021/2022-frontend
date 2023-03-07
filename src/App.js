@@ -25,7 +25,6 @@ function App() {
 	
 	let labels, prevLabels;
 
-
 	// variables for managing groups for views (including group view)
 	let setGroupInfo = null;
 	let groupInfo = null;
@@ -35,14 +34,12 @@ function App() {
 	// functions to communicate with a child component
 	const onMountSetGroupInfo = (dataFromChild) => { groupInfo = dataFromChild[0]; setGroupInfo = dataFromChild[1]; }
 	const onMountPointNum = (dataFromChild) => { pointNum = dataFromChild[0]; setPointNum = dataFromChild[1]; }
-
-	const addGroupInfo = (newGroupInfo) => {
-		scatterplotObj.addGroupInfo(newGroupInfo);
-		setGroupInfo([...scatterplotObj.getGroupInfo()])
-	}
-
+	
 	function updateWeightSlider(weights) { weights.forEach((weight, idx) => { document.getElementById("slider_" + idx).value = weight * 50; }); }
 	function updateGroupState(newGroupInfo) { setGroupInfo([...newGroupInfo]); }
+	function getGroupInfo() { return scatterplotObj.getGroupInfo(); }
+	function addGroupInfo(newGroupInfo)  { scatterplotObj.addGroupInfo(newGroupInfo); }
+	function confirmNewGroupLabel() { scatterplotObj.synchronizeLabel(); }
 
 	// initial function called when the page is loaded
 	useEffect(() => {
@@ -58,7 +55,6 @@ function App() {
 		})();
 	});
 
-
 	function updateLDBasedOnSlider(e) {
 		const idx = e.target.getAttribute('idx');
 		const value = e.target.value / 50;
@@ -70,23 +66,10 @@ function App() {
 		 })();
 	}
 
-	function tempUpdateLabel(newGroupIdx, coors) {
-		const newLabels = JSON.parse(JSON.stringify(prevLabels));
-		coors.forEach((idx) => {
-			newLabels[idx] = newGroupIdx;
-		});
-		labels = newLabels;
-	}
-
-	function updateColorBasedOnGroupView(newGroupIdx, coors) {
-		tempUpdateLabel(newGroupIdx, coors);
+	function updateColorBasedOnGroupView(label, indices) {
+		scatterplotObj.updateLabelTemp(label, indices)
 		scatterplotObj.updateColor();
 	}
-
-	function confirmNewGroupLabel() {
-		prevLabels = JSON.parse(JSON.stringify(labels));
-	}
-
 
 	function runQuery(groupInfo, queryType) {
 		// TODO
@@ -218,10 +201,10 @@ function App() {
 					onMountPointNum={onMountPointNum}
 					runQuery={runQuery}
 					updateColorBasedOnGroupView={updateColorBasedOnGroupView}
-					// updateColor={scattertplotObj.updateColor} TODO
 					confirmNewGroupLabel={confirmNewGroupLabel}
 					pointNum={pointNum}
 					addGroupInfo={addGroupInfo}
+					getGroupInfo={getGroupInfo}
 				/>
 				
 			</div>

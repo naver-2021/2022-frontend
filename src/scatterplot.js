@@ -220,11 +220,19 @@ export class scatterplot {
 		});
 	}
 
+	// temporarilly update label
+	updateLabelTemp(label, indices) {
+		indices.forEach(idx => this.dataObj.setLabel(idx, label));
+	}
+
+	synchronizeLabel() {
+		this.dataObj.setPrevLabelsAsLabels();
+	}
+
 
 	// functions for group management
 	addGroupInfo(groupInfo) { this.dataObj.addGroupInfo(groupInfo); }
 	getGroupInfo() { return this.dataObj.getGroupInfo(); }
-	// getFilterOptions() { return FUNC.getFilterOptions(); }
 	
 	getLen() { return this.dataObj.getLen(); }
 
