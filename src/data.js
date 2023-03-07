@@ -73,4 +73,6 @@ export class Data {
 
 	getPrevLabel(idx) { return this.prevLabels[idx]; }
 
+	getGroupInfo() { return this.groupInfo; }
+
 }

@@ -9,7 +9,7 @@ import * as FUNC from "./functionalities";
 export class scatterplot {
 	constructor(
 		canvas, lassoSvg, 
-		updateWeightResponder, 
+		onUpdateWeight, onUpdateGroup,
 		initialWeight, url, size, colormap
 	) {
 		this.canvas   = canvas;
@@ -17,7 +17,8 @@ export class scatterplot {
 		this.colormap = colormap;
 		this.size     = size;
 
-		this.updateWeightResponder = updateWeightResponder;
+		this.onUpdateWeight = onUpdateWeight;
+		this.onUpdateGroup = onUpdateGroup;
 
 		this.renderer = new Three.WebGLRenderer({ canvas: this.canvas });
 		this.camera   = new Three.OrthographicCamera(0, size, size, 0, 0, 1);
@@ -62,7 +63,7 @@ export class scatterplot {
 		if (currInfo !== undefined) {
 			this.dataObj.setCoors(currInfo.coors);
 			this.dataObj.setCurrWeights(currInfo.weights);
-			this.updateWeightResponder(currInfo.weights);
+			this.onUpdateWeight(currInfo.weights);
 			this.meshes.forEach((mesh, idx) => mesh.position.set(currInfo.coors[idx][0], currInfo.coors[idx][1], 0));
 		}
 		this.render();
@@ -159,9 +160,11 @@ export class scatterplot {
 
 			this.dataObj.addGroupInfo({
 				id: this.dataObj.getNextGroupId(),
+				name: `Group ${this.dataObj.getNextGroupId()}}`,
 				coors: this.nextGroup,
 				selected: false, shielded: false
 			});
+			this.onUpdateGroup(this.dataObj.getGroupInfo());
 		}
 	}
 
@@ -205,17 +208,26 @@ export class scatterplot {
 				this.setMeshScale(idx, [1, 1, 1]);
 			}
 		});
-		// TODO
-		// groupInfo.forEach((group, i) => {
-		// 	if (group.selected) {
-		// 		group.coors.forEach((coor, idx) => {
-		// 			if (coor) {
-		// 				scatterplotObj.setMeshScale(idx, [1.5, 1.5, 1.5]);
-		// 			}
-		// 		});
-		// 	}
-		// });
+		const groupInfo = this.dataObj.getGroupInfo();
+		groupInfo.forEach((group, i) => {
+			if (group.selected) {
+				group.coors.forEach((coor, idx) => {
+					if (coor) {
+						this.setMeshScale(idx, [1.5, 1.5, 1.5]);
+					}
+				});
+			}
+		});
 	}
+
+
+	// functions for group management
+	addGroupInfo(groupInfo) { this.dataObj.addGroupInfo(groupInfo); }
+	getGroupInfo() { return this.dataObj.getGroupInfo(); }
+	// getFilterOptions() { return FUNC.getFilterOptions(); }
+	
+	getLen() { return this.dataObj.getLen(); }
+
 }
 
 // Helpers

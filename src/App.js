@@ -17,8 +17,7 @@ const INITIALWEIGHT = new Array(ATTRLENGTH).fill(0.5);
 
 function App() {
 	
-	// object that manges the rendering
-  let scatterplotObj;
+	let scatterplotObj;
 
 	/* list of variables to be mangaged by a component */
 	const weights  = JSON.parse(JSON.stringify(INITIALWEIGHT));
@@ -26,19 +25,31 @@ function App() {
 	
 	let labels, prevLabels;
 
-	// variables for managing groups for views
+
+	// variables for managing groups for views (including group view)
 	let setGroupInfo = null;
 	let groupInfo = null;
 	let pointNum = null;
 	let setPointNum = null;
+	
+	// functions to communicate with a child component
+	const onMountSetGroupInfo = (dataFromChild) => { groupInfo = dataFromChild[0]; setGroupInfo = dataFromChild[1]; }
+	const onMountPointNum = (dataFromChild) => { pointNum = dataFromChild[0]; setPointNum = dataFromChild[1]; }
+
+	const addGroupInfo = (newGroupInfo) => {
+		scatterplotObj.addGroupInfo(newGroupInfo);
+		setGroupInfo([...scatterplotObj.getGroupInfo()])
+	}
+
+	function updateWeightSlider(weights) { weights.forEach((weight, idx) => { document.getElementById("slider_" + idx).value = weight * 50; }); }
+	function updateGroupState(newGroupInfo) { setGroupInfo([...newGroupInfo]); }
 
 	// initial function called when the page is loaded
 	useEffect(() => {
 		if (scatterplotObj !== undefined) return;
 		scatterplotObj = new SCATTER.scatterplot(
 			document.getElementById("canvas"), document.getElementById("lassoSvg"), 
-			updateWeightSlider,
-			INITIALWEIGHT, URL, SIZE, COLORMAP
+			updateWeightSlider, updateGroupState, INITIALWEIGHT, URL, SIZE, COLORMAP
 		);
 		(async () => { await scatterplotObj.initialLDRendering(INITIALCOLOR) })();
 		(async () => {
@@ -47,9 +58,6 @@ function App() {
 		})();
 	});
 
-	function updateWeightSlider(weights) {
-		weights.forEach((weight, idx) => { document.getElementById("slider_" + idx).value = weight * 50; });
-	}
 
 	function updateLDBasedOnSlider(e) {
 		const idx = e.target.getAttribute('idx');
@@ -60,17 +68,6 @@ function App() {
 			await scatterplotObj.updateLDToTargetWeight(weights, weights, 750);
 			currWeight = JSON.parse(JSON.stringify(weights));
 		 })();
-	}
-
-
-
-	const onGroupViewMount = (dataFromChild) => {
-		groupInfo = dataFromChild[0];
-		setGroupInfo = dataFromChild[1];
-	}
-	const onMountPointNum  = (dataFromChild) => {
-		pointNum = dataFromChild[0];
-		setPointNum = dataFromChild[1];
 	}
 
 	function tempUpdateLabel(newGroupIdx, coors) {
@@ -216,13 +213,15 @@ function App() {
 						);
 					})}
 				</div>
-				<GroupView onMount={onGroupViewMount} 
+				<GroupView 
+					onMountSetGroupInfo={onMountSetGroupInfo} 
 					onMountPointNum={onMountPointNum}
-				runQuery={runQuery}
+					runQuery={runQuery}
 					updateColorBasedOnGroupView={updateColorBasedOnGroupView}
 					// updateColor={scattertplotObj.updateColor} TODO
 					confirmNewGroupLabel={confirmNewGroupLabel}
 					pointNum={pointNum}
+					addGroupInfo={addGroupInfo}
 				/>
 				
 			</div>
