@@ -102,12 +102,31 @@ const GroupView = (props) => {
 		setNewGroupFilterDict(getNewGroupFilterDict());
 		props.confirmNewGroupLabel()
 	}
+
+	function deleteGroup() {
+		const selectedGroupId = groupInfo.filter((group) => group.selected).map((group) => group.id);
+		selectedGroupId.forEach((id) => { props.deleteGroupInfo(id) });
+		setGroupInfo(props.getGroupInfo());
+		props.updateColor();
+	}
+
+	function mergeGroup() {
+		const selectedGroupId = groupInfo.filter((group) => group.selected).map((group) => group.id);
+		props.mergeGroupInfo(selectedGroupId);
+		console.log(props.getGroupInfo());
+		setGroupInfo(props.getGroupInfo());
+		props.updateColor();
+
+	}
 	return (
 		<div>
 				<div>
 
 				<h1>Group View</h1>
 				<button className="groupAddButton" onClick={addGroup}>+ADD Group</button>
+				<button className="groupDeleteButton" onClick={deleteGroup}>-DELETE Group</button>
+				<button className="groupMergeButton" onClick={mergeGroup}>MERGE Group</button>
+
 				{groupInfo.map((group, idx) => {
 					return (
 						<div key={idx}>

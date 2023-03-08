@@ -1,5 +1,6 @@
 import * as FUNC from './functionalities';
 import robustPointInPolygon from "robust-point-in-polygon";
+import * as d3 from 'd3';
 
 
 export class Data {
@@ -36,6 +37,32 @@ export class Data {
 		this.nextGroupId += 1;
 	}
 
+	deleteGroupInfo(groupId) {
+		this.groupInfo = this.groupInfo.filter(groupInfo => groupInfo.id !== groupId);
+	}
+
+	mergeGroupInfo(groupIdices) {
+		const newGroupInfo = {
+			id: undefined,
+			coors: undefined,
+			name: undefined,
+			selected: false,
+			shielded: false
+		}
+		newGroupInfo.id = d3.min(groupIdices);
+		newGroupInfo.name = "Group_" + groupIdices.join("_");
+		newGroupInfo.coors = new Array(this.len).fill(false);
+		groupIdices.forEach((groupId) => {
+			const groupInfo = this.groupInfo.find(groupInfo => groupInfo.id === groupId);
+			groupInfo.coors.forEach((coor, idx) => {
+				if (coor) newGroupInfo.coors[idx] = true;
+			})
+		});
+		console.log(newGroupInfo.coors)
+		this.groupInfo = this.groupInfo.filter(groupInfo => !groupIdices.includes(groupInfo.id));
+		this.groupInfo = [...this.groupInfo, newGroupInfo];
+	}
+
 	getCoors() {
 		return this.coors;
 	}
@@ -54,6 +81,10 @@ export class Data {
 
 	getCurrWeights() {
 		return this.currWeight;
+	}
+
+	intiializeLabels() {
+		this.labels = new Array(this.len).fill(-1);
 	}
 
 	setPrevLabelsAsLabels() {

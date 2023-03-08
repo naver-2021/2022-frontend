@@ -39,6 +39,8 @@ function App() {
 	function updateGroupState(newGroupInfo) { setGroupInfo([...newGroupInfo]); }
 	function getGroupInfo() { return scatterplotObj.getGroupInfo(); }
 	function addGroupInfo(newGroupInfo)  { scatterplotObj.addGroupInfo(newGroupInfo); }
+	function deleteGroupInfo(groupId) { scatterplotObj.deleteGroupInfo(groupId); scatterplotObj.updateLabelBasedOnGroupInfo(); }
+	function mergeGroupInfo(groupIdices) { scatterplotObj.mergeGroupInfo(groupIdices); scatterplotObj.updateLabelBasedOnGroupInfo(); }
 	function confirmNewGroupLabel() { scatterplotObj.synchronizeLabel(); }
 
 	// initial function called when the page is loaded
@@ -126,6 +128,8 @@ function App() {
 					confirmNewGroupLabel={confirmNewGroupLabel}
 					pointNum={pointNum}
 					addGroupInfo={addGroupInfo}
+					deleteGroupInfo={deleteGroupInfo}
+					mergeGroupInfo={mergeGroupInfo}
 					getGroupInfo={getGroupInfo}
 				/>
 				

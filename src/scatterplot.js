@@ -198,6 +198,7 @@ export class scatterplot {
 	// rendering color 
 	updateColor() {
 		const labels = this.dataObj.getLabels();
+		console.log(labels)
 		labels.forEach((label, idx) => {
 			if (label === -1) {
 				this.setMeshColor(idx, 0xaaaaaa);
@@ -206,8 +207,8 @@ export class scatterplot {
 			else {
 				this.setMeshColor(idx, this.colormap[label % 10]);
 				this.setMeshPosition(idx, [this.getMeshPosition(idx)[0], this.getMeshPosition(idx)[1], 0.0000000000001 * label]);
-				this.setMeshScale(idx, [1, 1, 1]);
 			}
+			this.setMeshScale(idx, [1, 1, 1]);
 		});
 		const groupInfo = this.dataObj.getGroupInfo();
 		groupInfo.forEach((group, i) => {
@@ -218,6 +219,18 @@ export class scatterplot {
 					}
 				});
 			}
+		});
+	}
+
+	updateLabelBasedOnGroupInfo() {
+		const groupInfo = this.dataObj.getGroupInfo();
+		this.dataObj.intiializeLabels();
+		groupInfo.forEach((group, i) => {
+			group.coors.forEach((coor, idx) => {
+				if (coor) {
+					this.dataObj.setLabel(idx, group.id);
+				}
+			});
 		});
 	}
 
@@ -233,6 +246,8 @@ export class scatterplot {
 
 	// functions for group management
 	addGroupInfo(groupInfo) { this.dataObj.addGroupInfo(groupInfo); }
+	deleteGroupInfo(groupId) { this.dataObj.deleteGroupInfo(groupId); }
+	mergeGroupInfo(groupIds) { this.dataObj.mergeGroupInfo(groupIds); }
 	getGroupInfo() { return this.dataObj.getGroupInfo(); }
 	getLen() { return this.dataObj.getLen(); }
 
