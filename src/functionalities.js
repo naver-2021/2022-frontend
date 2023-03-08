@@ -12,6 +12,31 @@ export async function getAttrList(url) {
 	return response.data;
 }
 
+export async function getMergeShieldQueryWeights(url, mergeList, shieldList) {
+	const mergeListStr = mergeList.join(",")
+	const shieldListStr = shieldList.join(",")
+	const response = await axios.post(url + "query_merge_cluster", { params: { merge: mergeListStr, indices: shieldListStr } });
+	return response.data.weights;
+}
+
+export async function getMergeQueryWeights(url, mergeList) {
+	const mergeListStr = mergeList.join(",")
+	const response = await axios.post(url + "query_merge", { params: { index: mergeListStr } });
+	return response.data.weights;
+}
+
+export async function getSeparateQueryWeights(url, separateList) {
+	const separateListStr = separateList.join(",");
+	const response = await axios.post(url + "query_separate", { params: { index: separateListStr } });
+	return response.data.weights;
+}
+
+export async function getSplitQueryWeights(url, splitList) {
+	const splitListStr = splitList.join(",");
+	const response = await axios.post(url + "query_split", { params: { index: splitListStr } });
+	return response.data.weights;
+}
+
 export function getFilterOptions() {
 	return {
 		"Gender": ["f", "m"],

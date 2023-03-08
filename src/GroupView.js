@@ -23,9 +23,9 @@ const GroupView = (props) => {
 		props.onMountSetGroupInfo([groupInfo, setGroupInfo]);
 	}, [groupInfo]);
 
-	function runSplitQuery() { props.runQuery(groupInfo, "split") }
-	function runSeparateQuery() { props.runQuery(groupInfo, "separate") }
-	function runMergeQuery() { props.runQuery(groupInfo, "merge") }
+	function runSplitQuery() { props.runQuery("split") }
+	function runSeparateQuery() { props.runQuery("separate") }
+	function runMergeQuery() { props.runQuery( "merge") }
 
 	function getNewGroupFilterDict() {
 		let newGroupFilterDict = {};

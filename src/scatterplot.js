@@ -15,6 +15,7 @@ export class scatterplot {
 		this.canvas   = canvas;
 		this.lassoSvg = lassoSvg;
 		this.colormap = colormap;
+		this.url 		  = url;
 		this.size     = size;
 
 		this.onUpdateWeight = onUpdateWeight;
@@ -233,9 +234,54 @@ export class scatterplot {
 	// functions for group management
 	addGroupInfo(groupInfo) { this.dataObj.addGroupInfo(groupInfo); }
 	getGroupInfo() { return this.dataObj.getGroupInfo(); }
-	
 	getLen() { return this.dataObj.getLen(); }
 
+	// functions for query management
+	runQuery(queryType) {
+		if      (queryType == "merge")     { this.runMergeQuery(); }
+		else if (queryType == "separated") (this.runSeparateQuery() );
+		else if (queryType == "split")     { this.runSplitQuery(); }
+	}
+
+	runMergeQuery() {
+		const groupInfo = this.dataObj.getGroupInfo();
+		// Assume that selected groups contain shielded groups
+		const shieldedGroups = groupInfo.filter(group => group.shielded);
+		const selectedGroups = groupInfo.filter(group => group.selected && !group.shielded);
+		if (selectedGroups.length < 1) { alert("Please select at least one group"); return; }
+
+		const selectedIndexList = generateIndexListFromGroups(selectedGroups);
+		const shieldedIndexList = generateIndexListFromGroups(shieldedGroups);
+		(async () => {
+			let queryWeights;
+			if (shieldedGroups.legnth > 0) queryWeights = await FUNC.getMergeShieldQueryWeights(this.url, selectedIndexList, shieldedIndexList);
+			else queryWeights = await FUNC.getMergeQueryWeights(this.url, selectedIndexList);
+			this.updateLDToTargetWeight(this.dataObj.getCurrWeights(), queryWeights, 750);
+		})();
+	}
+
+	runSeparateQuery() {
+		const groupInfo = this.dataObj.getGroupInfo();
+		const selectedGroups = groupInfo.filter(group => group.selected);
+		if (selectedGroups.length < 1) { alert("Please select at least one group"); return; }
+		
+		const selectedIndexList = generateIndexListFromGroups(selectedGroups);
+		(async () => {
+			const queryWeights = await FUNC.getSeparateQueryWeights(this.url, selectedIndexList);
+			this.updateLDToTargetWeight(this.dataObj.getCurrWeights(), queryWeights, 750);
+		})();
+	}
+
+	runSplitQuery() {
+		const selectedGroups = this.dataObj.getGroupInfo().filter(group => group.selected);
+		if (selectedGroups.length < 1) { alert("Please select at least one group"); return; }
+
+		const selectedIndexList = generateIndexListFromGroups(selectedGroups);
+		(async () => {
+			const queryWeights = await FUNC.getSplitQueryWeights(this.url, selectedIndexList);
+			this.updateLDToTargetWeight(this.dataObj.getCurrWeights(), queryWeights, 750);
+		})();
+	}
 }
 
 // Helpers
@@ -249,5 +295,15 @@ function generateMesh(data, radius, color) {
 	mesh.scale.set(1, 1, 1);
 
 	return mesh;
+}
+
+function generateIndexListFromGroups(groups) {
+	const coors = new Array(groups.length).fill(false);
+	groups.forEach(group => {
+		group.coors.forEach((coor, idx) => {
+			if (coor) coors[idx] = true;
+		});
+	});
+	return coors.map((_, idx) => idx).filter((i) => coors[i]);
 }
 

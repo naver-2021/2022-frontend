@@ -71,89 +71,51 @@ function App() {
 		scatterplotObj.updateColor();
 	}
 
-	function runQuery(groupInfo, queryType) {
+	function updateColor() { scatterplotObj.updateColor(); }
+
+	function runQuery(queryType) {
 		// TODO
-		if (queryType == "merge") {
-			const selectedAndShieldedGroups = groupInfo.filter((group) => group.selected);
-			const shieldedGroups = selectedAndShieldedGroups.filter((group) => group.shielded);
-			const selectedGroups = selectedAndShieldedGroups.filter((group) => !group.shielded);
-			if (selectedAndShieldedGroups.length < 1) {
-				alert("Please select at least one group");
-				return;
-			}
-			const selectedCoors = new Array(selectedGroups[0].coors.length).fill(false);
-			selectedGroups.forEach((group) => {
-				group.coors.forEach((coor, i) => {
-					selectedCoors[i] = selectedCoors[i] || coor;
-				})
-			});
-			const indexList = selectedCoors.map((coor, i) => i).filter((i) => selectedCoors[i]);
-			const indexListString = indexList.join(",");
+		scatterplotObj.runQuery(queryType);
+		// if (queryType == "merge") {
 
-			if (shieldedGroups.length > 0) {
-				let shieldIndexList = []
-				shieldedGroups.forEach((group) => {
-					const groupIndexList = group.coors.map((coor, i) => i).filter((i) => group.coors[i]);
-					shieldIndexList = shieldIndexList.concat(groupIndexList);
-				});
-				const shieldIndexListString = JSON.stringify(shieldIndexList);
-				(async () => {
-					console.log(shieldIndexList, indexList)
-					const response = await axios.post(URL + "query_merge_cluster", { params: { merge: indexListString, indices: shieldIndexListString } });
-					const newWeight = response.data.weights;
-					// await updateLDToTargetWeight(currWeight, newWeight, 10, 750, true);
-					// TODO
-				})();
-			}
-			else {
-				(async () => {
-					const response = await axios.post(URL + "query_merge", { params: { index: indexListString } });
-					const newWeight = response.data.weights;
-					// await updateLDToTargetWeight(currWeight, newWeight, 10, 750, true);
-					// TODO
-				})();
-			}
-	
-		}
-		if (queryType == "separate") {
-			const selectedGroups = groupInfo.filter((group) => group.selected);
-			if (selectedGroups.length < 2) {
-				alert("Please select at least two groups");
-				return;
-			}
-			const indexList = []
-			selectedGroups.forEach((group) => {
-				const groupIndexList = group.coors.map((coor, i) => i).filter((i) => group.coors[i]);
-				indexList.push(groupIndexList);
-			});
-			console.log(indexList.length)
-			const indexListString = JSON.stringify(indexList);
-			(async () => {
-				const response = await axios.post(URL + "query_cluster", { params: { indices: indexListString } });
-				const newWeight = response.data.weights;
-				// await updateLDToTargetWeight(currWeight, newWeight, 10, 750, true);
-				// TODO
-			})();
-		}
-		if (queryType == "split") {
-			const selectedGroups = groupInfo.filter((group) => group.selected);
-			if (selectedGroups.length > 1) {
-				alert("Please select only one group");
-				return;
-			}
-			let indexList = [];
-			selectedGroups.forEach((group) => {
-				const groupIndexList = group.coors.map((coor, i) => i).filter((i) => group.coors[i]);
-				indexList = indexList.concat(groupIndexList);
-			});
-			(async () => {
-				const response = await axios.post(URL + "query_split", { params: { index: indexList } });
-				const newWeight = response.data.weights;
-				// await updateLDToTargetWeight(currWeight, newWeight, 10, 750, true);
-				// TODO
-			})();
+		// if (queryType == "separate") {
+		// // 	const selectedGroups = groupInfo.filter((group) => group.selected);
+		// // 	if (selectedGroups.length < 2) {
+		// // 		alert("Please select at least two groups");
+		// // 		return;
+		// // 	}
+		// // 	const indexList = []
+		// // 	selectedGroups.forEach((group) => {
+		// // 		const groupIndexList = group.coors.map((coor, i) => i).filter((i) => group.coors[i]);
+		// // 		indexList.push(groupIndexList);
+		// // 	});
+		// // 	const indexListString = JSON.stringify(indexList);
+		// // 	(async () => {
+		// // 		const response = await axios.post(URL + "query_cluster", { params: { indices: indexListString } });
+		// // 		const newWeight = response.data.weights;
+		// // 		// await updateLDToTargetWeight(currWeight, newWeight, 10, 750, true);
+		// // 		// TODO
+		// // 	})();
+		// // }
+		// if (queryType == "split") {
+		// 	const selectedGroups = groupInfo.filter((group) => group.selected);
+		// 	if (selectedGroups.length > 1) {
+		// 		alert("Please select only one group");
+		// 		return;
+		// 	}
+		// 	let indexList = [];
+		// 	selectedGroups.forEach((group) => {
+		// 		const groupIndexList = group.coors.map((coor, i) => i).filter((i) => group.coors[i]);
+		// 		indexList = indexList.concat(groupIndexList);
+		// 	});
+		// 	(async () => {
+		// 		const response = await axios.post(URL + "query_split", { params: { index: indexList } });
+		// 		const newWeight = response.data.weights;
+		// 		// await updateLDToTargetWeight(currWeight, newWeight, 10, 750, true);
+		// 		// TODO
+		// 	})();
 
-		}
+		// }
 	}
 
 
@@ -201,6 +163,7 @@ function App() {
 					onMountPointNum={onMountPointNum}
 					runQuery={runQuery}
 					updateColorBasedOnGroupView={updateColorBasedOnGroupView}
+					updateColor={updateColor}
 					confirmNewGroupLabel={confirmNewGroupLabel}
 					pointNum={pointNum}
 					addGroupInfo={addGroupInfo}

@@ -52,6 +52,10 @@ export class Data {
 		this.currWeight = currWeights;
 	}
 
+	getCurrWeights() {
+		return this.currWeight;
+	}
+
 	setPrevLabelsAsLabels() {
 		this.prevLabels = JSON.parse(JSON.stringify(this.labels));
 	}
