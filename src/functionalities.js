@@ -27,7 +27,7 @@ export async function getMergeQueryWeights(url, mergeList) {
 
 export async function getSeparateQueryWeights(url, separateList) {
 	const separateListStr = separateList.join(",");
-	const response = await axios.post(url + "query_separate", { params: { index: separateListStr } });
+	const response = await axios.post(url + "query_cluster", { params: { index: separateListStr } });
 	return response.data.weights;
 }
 

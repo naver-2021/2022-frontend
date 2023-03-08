@@ -237,13 +237,13 @@ export class scatterplot {
 	getLen() { return this.dataObj.getLen(); }
 
 	// functions for query management
-	runQuery(queryType) {
-		if      (queryType == "merge")     { this.runMergeQuery(); }
-		else if (queryType == "separated") (this.runSeparateQuery() );
-		else if (queryType == "split")     { this.runSplitQuery(); }
+	async runQuery(queryType) {
+		if      (queryType == "merge")     { return await this.runMergeQuery(); }
+		else if (queryType == "separate") { return await this.runSeparateQuery() }
+		else if (queryType == "split")     { return await this.runSplitQuery(); }
 	}
 
-	runMergeQuery() {
+	async runMergeQuery() {
 		const groupInfo = this.dataObj.getGroupInfo();
 		// Assume that selected groups contain shielded groups
 		const shieldedGroups = groupInfo.filter(group => group.shielded);
@@ -252,40 +252,40 @@ export class scatterplot {
 
 		const selectedIndexList = generateIndexListFromGroups(selectedGroups);
 		const shieldedIndexList = generateIndexListFromGroups(shieldedGroups);
-		(async () => {
-			let queryWeights;
-			if (shieldedGroups.legnth > 0) queryWeights = await FUNC.getMergeShieldQueryWeights(this.url, selectedIndexList, shieldedIndexList);
-			else queryWeights = await FUNC.getMergeQueryWeights(this.url, selectedIndexList);
-			this.updateLDToTargetWeight(this.dataObj.getCurrWeights(), queryWeights, 750);
-		})();
+		let queryWeights;
+		if (shieldedGroups.legnth > 0) queryWeights = await FUNC.getMergeShieldQueryWeights(this.url, selectedIndexList, shieldedIndexList);
+		else queryWeights = await FUNC.getMergeQueryWeights(this.url, selectedIndexList);
+		this.updateLDToTargetWeight(this.dataObj.getCurrWeights(), queryWeights, 750);
+		return queryWeights;
 	}
+	
 
-	runSeparateQuery() {
+	async runSeparateQuery() {
 		const groupInfo = this.dataObj.getGroupInfo();
 		const selectedGroups = groupInfo.filter(group => group.selected);
 		if (selectedGroups.length < 1) { alert("Please select at least one group"); return; }
 		
 		const selectedIndexList = generateIndexListFromGroups(selectedGroups);
-		(async () => {
-			const queryWeights = await FUNC.getSeparateQueryWeights(this.url, selectedIndexList);
-			this.updateLDToTargetWeight(this.dataObj.getCurrWeights(), queryWeights, 750);
-		})();
+
+		const queryWeights = await FUNC.getSeparateQueryWeights(this.url, selectedIndexList);
+		this.updateLDToTargetWeight(this.dataObj.getCurrWeights(), queryWeights, 750);
+		return queryWeights;
+
 	}
 
-	runSplitQuery() {
+	async runSplitQuery() {
 		const selectedGroups = this.dataObj.getGroupInfo().filter(group => group.selected);
 		if (selectedGroups.length < 1) { alert("Please select at least one group"); return; }
 
 		const selectedIndexList = generateIndexListFromGroups(selectedGroups);
-		(async () => {
-			const queryWeights = await FUNC.getSplitQueryWeights(this.url, selectedIndexList);
-			this.updateLDToTargetWeight(this.dataObj.getCurrWeights(), queryWeights, 750);
-		})();
+
+		const queryWeights = await FUNC.getSplitQueryWeights(this.url, selectedIndexList);
+		this.updateLDToTargetWeight(this.dataObj.getCurrWeights(), queryWeights, 750);
+		return queryWeights;
 	}
 }
 
 // Helpers
-
 function generateMesh(data, radius, color) {
 	const geometry = new Three.CircleGeometry(radius, 5);
 	const material = new Three.MeshBasicMaterial({ color: color })

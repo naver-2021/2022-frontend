@@ -20,7 +20,7 @@ function App() {
 	let scatterplotObj;
 
 	/* list of variables to be mangaged by a component */
-	const weights  = JSON.parse(JSON.stringify(INITIALWEIGHT));
+	let weights  = JSON.parse(JSON.stringify(INITIALWEIGHT));
 	let currWeight = JSON.parse(JSON.stringify(INITIALWEIGHT));
 	
 	let labels, prevLabels;
@@ -67,58 +67,17 @@ function App() {
 	}
 
 	function updateColorBasedOnGroupView(label, indices) {
-		scatterplotObj.updateLabelTemp(label, indices)
+		scatterplotObj.updateLabelTemp(label, indices);
 		scatterplotObj.updateColor();
 	}
 
 	function updateColor() { scatterplotObj.updateColor(); }
-
-	function runQuery(queryType) {
-		// TODO
-		scatterplotObj.runQuery(queryType);
-		// if (queryType == "merge") {
-
-		// if (queryType == "separate") {
-		// // 	const selectedGroups = groupInfo.filter((group) => group.selected);
-		// // 	if (selectedGroups.length < 2) {
-		// // 		alert("Please select at least two groups");
-		// // 		return;
-		// // 	}
-		// // 	const indexList = []
-		// // 	selectedGroups.forEach((group) => {
-		// // 		const groupIndexList = group.coors.map((coor, i) => i).filter((i) => group.coors[i]);
-		// // 		indexList.push(groupIndexList);
-		// // 	});
-		// // 	const indexListString = JSON.stringify(indexList);
-		// // 	(async () => {
-		// // 		const response = await axios.post(URL + "query_cluster", { params: { indices: indexListString } });
-		// // 		const newWeight = response.data.weights;
-		// // 		// await updateLDToTargetWeight(currWeight, newWeight, 10, 750, true);
-		// // 		// TODO
-		// // 	})();
-		// // }
-		// if (queryType == "split") {
-		// 	const selectedGroups = groupInfo.filter((group) => group.selected);
-		// 	if (selectedGroups.length > 1) {
-		// 		alert("Please select only one group");
-		// 		return;
-		// 	}
-		// 	let indexList = [];
-		// 	selectedGroups.forEach((group) => {
-		// 		const groupIndexList = group.coors.map((coor, i) => i).filter((i) => group.coors[i]);
-		// 		indexList = indexList.concat(groupIndexList);
-		// 	});
-		// 	(async () => {
-		// 		const response = await axios.post(URL + "query_split", { params: { index: indexList } });
-		// 		const newWeight = response.data.weights;
-		// 		// await updateLDToTargetWeight(currWeight, newWeight, 10, 750, true);
-		// 		// TODO
-		// 	})();
-
-		// }
+	async function runQuery(queryType) {
+		const queryWeights = await scatterplotObj.runQuery(queryType);
+		if (queryWeights === undefined) return;
+		currWeight = JSON.parse(JSON.stringify(queryWeights));
+		weights = JSON.parse(JSON.stringify(queryWeights));
 	}
-
-
 
   return (
     <div className="App">
